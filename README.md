@@ -151,3 +151,56 @@ Run the complete test suite across all 10 phases:
 `separate_stems` requires the pretrained `htdemucs_6s` model. It stops without writing stems if the model cannot load; the optional DSP filterbank fallback is experimental and must not be treated as isolated instrument sources. The model's six labels are `drums`, `bass`, `other`, `vocals`, `guitar`, and `piano` (`piano` is not relabeled as `synth`).
 
 The current guitar, vocal, and orchestra sub-decomposers use heuristic masks. They are disabled by default, labeled experimental when explicitly enabled, and excluded from the full pipeline's mastering/transcription inputs. They do not meet production source-separation quality. Automatic tablature and sync events are drafts and require human review.
+
+
+---
+
+## GPU Acceleration & PyTorch CUDA Setup (NVIDIA RTX)
+
+To leverage NVIDIA GPU acceleration (e.g. RTX 3070 / RTX 40-series) for fast Demucs stem separation (~15-30 seconds instead of ~7-8 minutes on CPU):
+
+### Option A: Online Installation via Pip
+Run inside PowerShell (uses `--default-timeout=1000` to prevent socket timeouts on fluctuating connections):
+```powershell
+.\.venv\Scripts\pip install --upgrade --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 --default-timeout=1000
+```
+
+### Option B: Manual Wheel (.whl) Installation (Recommended if Pip Timeouts)
+If direct pip downloads time out due to the large ~2.5 GB wheel size:
+1. Download the official PyTorch CUDA 12.4 wheel for Windows (Python 3.12, x64) via browser or download manager:
+   - **Torch CUDA 12.4**: [torch-2.4.1+cu124-cp312-cp312-win_amd64.whl](https://download.pytorch.org/whl/cu124/torch-2.4.1%2Bcu124-cp312-cp312-win_amd64.whl)
+   - **Torchaudio CUDA 12.4**: [torchaudio-2.4.1+cu124-cp312-cp312-win_amd64.whl](https://download.pytorch.org/whl/cu124/torchaudio-2.4.1%2Bcu124-cp312-cp312-win_amd64.whl)
+2. Install the downloaded wheel file directly into `.venv`:
+   ```powershell
+   .\.venv\Scripts\pip install "C:\path\to\torch-2.4.1+cu124-cp312-cp312-win_amd64.whl"
+   ```
+
+### Verifying GPU Activation
+Verify that PyTorch recognizes your NVIDIA GPU:
+```powershell
+.\.venv\Scripts\python.exe -c "import torch; print('CUDA Available:', torch.cuda.is_available()); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
+```
+Output should display:
+```text
+CUDA Available: True
+Device: NVIDIA GeForce RTX 3070
+```
+
+---
+
+## DAW & Ableton Live 12 Integration (Phase 12)
+
+The studio supports generating native **Ableton Live Set (`.als`)** project archives and auto-launching them into Ableton Live:
+- Generates native gzip-compressed Live 12 XML sets with audio tracks mapped directly to separated stems (`vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, `other.wav`).
+- Automatically resolves `Ableton Live 12 Suite.exe` from common installation directories or environment paths.
+- Preserves track tempo (BPM) and disables time-warping (`IsWarped = false`) so high-fidelity stems stay in pristine phase alignment.
+- Also supports generating REAPER (`.rpp`) project files and JSON manifests.
+
+---
+
+## Separation Backends (3 Options)
+
+From the Web UI **Separation backend** selector, you can choose:
+1. **Demucs HT 6-source estimate (`htdemucs_6s`)**: Pretrained neural network separating audio into 6 clean instrument stems. Highly accurate. Runtime: ~15-30s on RTX 3070 GPU / ~4-8 min on CPU.
+2. **Experimental Heuristic DSP Mask (`experimental_dsp_masks`)**: Fast mathematical STFT filterbank & Mid/Side separation (~2-3s on CPU). Ideal for rapid testing without waiting for GPU inference.
+3. **Cascaded Models (`cascaded_separation`)**: Reserved for multi-stage pipelines; disabled until verified weights are configured.
