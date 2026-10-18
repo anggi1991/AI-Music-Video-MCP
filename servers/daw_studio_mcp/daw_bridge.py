@@ -90,13 +90,24 @@ def _format_rpp_fxchain(vst_list: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _format_rpp_audio_item(name: str, file_path: str, duration_sec: float) -> str:
-    """Format a REAPER audio media item block."""
+def _format_rpp_audio_item(name: str, file_path: str, duration_sec: Optional[float] = None) -> str:
+    """Format a REAPER audio media item block with full length of the audio file."""
     abs_path = os.path.abspath(file_path).replace("\\", "/")
+    item_duration = duration_sec or 0.0
+    if os.path.isfile(file_path):
+        try:
+            info = sf.info(file_path)
+            if info.duration > 0:
+                item_duration = float(info.duration)
+        except Exception:
+            pass
+    if item_duration <= 0:
+        item_duration = 240.0
+
     return f"""    <ITEM
       POSITION 0.00000000000000
       SNAPOFFS 0.00000000000000
-      LENGTH {duration_sec:.6f}
+      LENGTH {item_duration:.6f}
       LOOP 0
       ALLTAKES 0
       FADEIN 1 0.005000 0.000000 1 0 0 0
@@ -150,6 +161,7 @@ def generate_reaper_project_rpp(
     vst3_assignments: Optional[Dict[str, Any]] = None,
     output_rpp_path: str = "session.rpp",
     launch_reaper: bool = False,
+    auto_use_detected_vst3: bool = True,
 ) -> Dict[str, Any]:
     """Generate a REAPER project skeleton using supplied audio and available plugins."""
     os.makedirs(os.path.dirname(os.path.abspath(output_rpp_path)), exist_ok=True)
@@ -194,10 +206,8 @@ def generate_reaper_project_rpp(
         "  GROUPOVERRIDE 0 0 0",
         "  AUTOXFADE 1",
         "  ENVATTACH 1",
-        "  MIXERFLAG 1",
         "  PEAKGAIN 1",
         "  FEEDBACK 0",
-        "  PANREVALGO 3",
         f"  TEMPO {bpm:.6f} {ts_num} {ts_den}",
         f"  SAMPLERATE {project_sample_rate} 0 0",
     ]
@@ -213,14 +223,21 @@ def generate_reaper_project_rpp(
             if marker_count >= 50:
                 break
 
-    # Master Track Definition
-    rpp_lines.extend([
-        "  <MASTERTRACK",
-        "    NAME Master",
-        "    VOLPAN 1 0 -1 -1 1",
-        master_fx_str,
-        "  >",
-    ])
+    # Master FX List Definition (Standard REAPER 7 structure)
+    if master_fx_str:
+        rpp_lines.extend([
+            "  <MASTERFXLIST",
+            "    SHOW 0",
+            "    LASTSEL 0",
+            "    DOCKED 0",
+        ])
+        for p in master_chain_cfg:
+            p_name = p.get("plugin_name", "VST3 Plugin")
+            p_path = p.get("vst3_path", "")
+            if p_path and os.path.exists(p_path):
+                rpp_lines.append(f'    <VST "VST3: {p_name}" "{os.path.basename(p_path)}" 0 "" 0 ""')
+                rpp_lines.append("    >")
+        rpp_lines.append("  >")
 
     total_tracks_count = 0
     total_buses_count = 0
@@ -243,7 +260,7 @@ def generate_reaper_project_rpp(
 
         # Get FX chain
         fx_chain_cfg = []
-        if role:
+        if role and auto_use_detected_vst3:
             fx_chain_cfg = build_flagship_role_chain(role, vst_reg)
         if is_vsti and role == "vsti_drums":
             fx_chain_cfg = [{

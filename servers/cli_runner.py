@@ -203,6 +203,7 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
             include_vsti_midi_tracks=params.get("include_vsti_midi_tracks", False),
             output_rpp_path=params.get("output_rpp_path", os.path.join(PROJECT_ROOT, "workspace", "output_audio", f"{project_name}_session.rpp")),
             launch_reaper=bool(params.get("launch_reaper", False)),
+            auto_use_detected_vst3=bool(params.get("auto_use_detected_vst3", True)),
         )
         rpp_file = res.get("output_rpp_path") or res.get("rpp_path")
         if params.get("launch_reaper", False) and rpp_file and not res.get("launched"):
