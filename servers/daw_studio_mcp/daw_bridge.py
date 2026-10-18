@@ -149,6 +149,7 @@ def generate_reaper_project_rpp(
     include_vsti_midi_tracks: bool = False,
     vst3_assignments: Optional[Dict[str, Any]] = None,
     output_rpp_path: str = "session.rpp",
+    launch_reaper: bool = False,
 ) -> Dict[str, Any]:
     """Generate a REAPER project skeleton using supplied audio and available plugins."""
     os.makedirs(os.path.dirname(os.path.abspath(output_rpp_path)), exist_ok=True)
@@ -359,10 +360,16 @@ def generate_reaper_project_rpp(
     with open(output_rpp_path, "w", encoding="utf-8") as f:
         f.write("\n".join(rpp_lines) + "\n")
 
+    launched = False
+    if launch_reaper and os.path.isfile(output_rpp_path):
+        launched = launch_reaper_project(output_rpp_path)
+
     return {
         "status": "success",
         "project_name": project_name,
         "output_rpp_path": output_rpp_path,
+        "rpp_path": output_rpp_path,
+        "launched": launched,
         "bpm": bpm,
         "time_signature": time_signature,
         "total_tracks": total_tracks_count,
@@ -371,6 +378,51 @@ def generate_reaper_project_rpp(
         "vsti_midi_tracks_included": include_vsti_midi_tracks,
         "master_vst3_plugins": [p["plugin_name"] for p in master_chain_cfg if p.get("vst3_path") and os.path.exists(p["vst3_path"])],
     }
+
+
+def find_reaper_executable() -> Optional[str]:
+    """Search common paths for REAPER executable."""
+    candidates = [
+        r"F:\installer program\REAPER\reaper.exe",
+        r"C:\Program Files\REAPER (x64)\reaper.exe",
+        r"C:\Program Files\REAPER\reaper.exe",
+        r"C:\Program Files (x86)\REAPER\reaper.exe",
+        r"D:\REAPER (x64)\reaper.exe",
+        r"D:\REAPER\reaper.exe",
+        r"F:\REAPER (x64)\reaper.exe",
+        r"F:\REAPER\reaper.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\REAPER\reaper.exe"),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    try:
+        import shutil
+        which = shutil.which("reaper")
+        if which and os.path.isfile(which):
+            return which
+    except Exception:
+        pass
+    return None
+
+
+def launch_reaper_project(rpp_path: str) -> bool:
+    """Launch REAPER with the specified .rpp project file."""
+    if not os.path.isfile(rpp_path):
+        return False
+    exe = find_reaper_executable()
+    try:
+        import subprocess
+        abs_rpp = os.path.abspath(rpp_path)
+        if exe and os.path.isfile(exe):
+            subprocess.Popen([exe, abs_rpp], close_fds=True)
+            return True
+        elif hasattr(os, "startfile"):
+            os.startfile(abs_rpp)
+            return True
+    except Exception:
+        pass
+    return False
 
 
 def find_ableton_executable() -> Optional[str]:

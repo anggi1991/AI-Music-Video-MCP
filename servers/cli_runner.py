@@ -202,13 +202,12 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
             sync_map_json_path=params.get("sync_map_json_path"),
             include_vsti_midi_tracks=params.get("include_vsti_midi_tracks", False),
             output_rpp_path=params.get("output_rpp_path", os.path.join(PROJECT_ROOT, "workspace", "output_audio", f"{project_name}_session.rpp")),
+            launch_reaper=bool(params.get("launch_reaper", False)),
         )
-        if params.get("launch_reaper", False) and res.get("rpp_path") and os.path.isfile(res["rpp_path"]):
-            try:
-                os.startfile(os.path.abspath(res["rpp_path"]))
-                res["launched"] = True
-            except Exception:
-                res["launched"] = False
+        rpp_file = res.get("output_rpp_path") or res.get("rpp_path")
+        if params.get("launch_reaper", False) and rpp_file and not res.get("launched"):
+            from servers.daw_studio_mcp.daw_bridge import launch_reaper_project
+            res["launched"] = launch_reaper_project(rpp_file)
         return res
 
     elif action == "create_ableton":
