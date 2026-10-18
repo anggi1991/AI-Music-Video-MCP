@@ -7,6 +7,27 @@ const PROJECT_ROOT = path.resolve(process.cwd(), "..");
 const PYTHON_EXE = path.join(PROJECT_ROOT, ".venv", "Scripts", "python.exe");
 const CLI_RUNNER = path.join(PROJECT_ROOT, "servers", "cli_runner.py");
 
+
+function resolveAntigravityDispatch(prompt: string): { cliCmd: string; cliArgs: string[]; targetLabel: string } {
+  // Option 1: Standalone Antigravity CLI ('agy') if in PATH
+  try {
+    const { execSync } = require("child_process");
+    execSync("where.exe agy", { stdio: "ignore" });
+    return {
+      cliCmd: "agy",
+      cliArgs: [prompt],
+      targetLabel: "Antigravity CLI (agy)",
+    };
+  } catch {}
+
+  // Option 2 (Fallback): Antigravity IDE CLI
+  return {
+    cliCmd: "antigravity-ide.cmd",
+    cliArgs: ["chat", "-r", prompt],
+    targetLabel: "Antigravity IDE (Chat Session)",
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -30,13 +51,16 @@ export async function POST(req: NextRequest) {
       // Determine CLI executable command based on selected engine
       let cliCmd = "claude";
       let cliArgs = ["-p", promptToUse, "--mcp-config", path.join(PROJECT_ROOT, "mcp_config.json")];
+      let agentTarget = engine;
 
       if (engine === "codex") {
         cliCmd = "codex";
         cliArgs = [promptToUse];
       } else if (engine === "antigravity") {
-        cliCmd = "antigravity";
-        cliArgs = ["--prompt", promptToUse];
+        const resolved = resolveAntigravityDispatch(promptToUse);
+        cliCmd = resolved.cliCmd;
+        cliArgs = resolved.cliArgs;
+        agentTarget = resolved.targetLabel;
       }
 
       // If user requested dry-run or copy-only
@@ -70,16 +94,21 @@ export async function POST(req: NextRequest) {
           });
 
           proc.on("close", (code) => {
+            const isSuccess = code === 0 && !stderr.includes("not recognized") && !stderr.includes("not found");
             resolve(
               NextResponse.json({
-                status: code === 0 ? "success" : "partial",
+                status: isSuccess ? "success" : "error",
                 mode: "agent_cli",
                 engine,
+                target: agentTarget,
                 exit_code: code,
                 cli_command: `${cliCmd} ${cliArgs.join(" ")}`,
                 prompt: promptToUse,
-                stdout: stdout || `Agent ${engine} launched successfully.`,
+                stdout: stdout || (isSuccess ? `Prompt dispatched to ${agentTarget} successfully.` : ""),
                 stderr: stderr,
+                message: isSuccess
+                  ? `Prompt successfully sent to ${agentTarget}.`
+                  : `Failed to dispatch prompt to ${agentTarget}: ${stderr || "exited with code " + code}`,
               })
             );
           });
@@ -245,6 +274,19 @@ function generateMasterPrompt(action: string, params: any): string {
     return (
       `Assemble beat-synchronized CapCut Desktop project "${params.draft_name}".\n` +
       `Read visual_sync_map.json, map Veo footage clips, apply micro speed-ramping to match song BPM, and inject breakdown camera shake/punch keyframes.`
+    );
+  } else if (action === "create_ableton") {
+    return (
+      `Generate native Ableton Live Set (.als) and session manifest for project "${params.project_name}".\n` +
+      `- Map all separated audio stems (vocals, guitars, bass, drums, orchestra, piano) to individual audio tracks.\n` +
+      `- Set arrangement timeline clips and project tempo to ${params.bpm || 140.0} BPM.\n` +
+      `- Auto-launch Ableton Live 12 to open the generated project session.`
+    );
+  } else if (action === "create_reaper_rpp") {
+    return (
+      `Generate REAPER project (.rpp) with 5 folder buses, flagship VST3 chains, and VSTi tracks for project "${params.project_name}".\n` +
+      `- Map all separated audio stems to their respective bus folders at ${params.bpm || 140.0} BPM.\n` +
+      `- Set markers from visual_sync_map.json and include Archetype Gojira and Superior Drummer 3 tracks.`
     );
   }
   return `Execute MCP task "${action}" with parameters: ${JSON.stringify(params, null, 2)}`;

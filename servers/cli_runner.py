@@ -175,27 +175,52 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         stems = params.get("stem_paths", {})
         if isinstance(stems, str):
             stems = json.loads(stems)
-        return generate_reaper_project_rpp(
-            project_name=params.get("project_name", "Studio_Project"),
+        project_name = params.get("project_name", "Studio_Project")
+        if not stems and project_name:
+            stem_dir = os.path.join(PROJECT_ROOT, "workspace", "input_stems", project_name)
+            if os.path.isdir(stem_dir):
+                for f in os.listdir(stem_dir):
+                    if f.endswith(".wav"):
+                        key = os.path.splitext(f)[0]
+                        stems[key] = os.path.join(stem_dir, f)
+        res = generate_reaper_project_rpp(
+            project_name=project_name,
             bpm=float(params.get("bpm", 140.0)),
             time_signature=params.get("time_signature", "4/4"),
             stem_paths=stems,
             sync_map_json_path=params.get("sync_map_json_path"),
             include_vsti_midi_tracks=params.get("include_vsti_midi_tracks", False),
-            output_rpp_path=params.get("output_rpp_path", os.path.join(PROJECT_ROOT, "workspace", "output_audio", "session.rpp")),
+            output_rpp_path=params.get("output_rpp_path", os.path.join(PROJECT_ROOT, "workspace", "output_audio", f"{project_name}_session.rpp")),
         )
+        if params.get("launch_reaper", False) and res.get("rpp_path") and os.path.isfile(res["rpp_path"]):
+            try:
+                os.startfile(os.path.abspath(res["rpp_path"]))
+                res["launched"] = True
+            except Exception:
+                res["launched"] = False
+        return res
 
     elif action == "create_ableton":
         stems = params.get("stem_paths", {})
         if isinstance(stems, str):
             stems = json.loads(stems)
+        project_name = params.get("project_name", "Studio_Project")
+        if not stems and project_name:
+            stem_dir = os.path.join(PROJECT_ROOT, "workspace", "input_stems", project_name)
+            if os.path.isdir(stem_dir):
+                for f in os.listdir(stem_dir):
+                    if f.endswith(".wav"):
+                        key = os.path.splitext(f)[0]
+                        stems[key] = os.path.join(stem_dir, f)
         return export_ableton_als_session_manifest(
-            project_name=params.get("project_name", "Studio_Project"),
+            project_name=project_name,
             bpm=float(params.get("bpm", 140.0)),
             musical_key=params.get("musical_key", "C Minor"),
             stem_paths=stems,
             sync_map_json_path=params.get("sync_map_json_path"),
             output_dir=params.get("output_dir", os.path.join(PROJECT_ROOT, "workspace", "output_audio")),
+            generate_als=bool(params.get("generate_als", True)),
+            launch_ableton=bool(params.get("launch_ableton", False)),
         )
 
     elif action == "classify_footage":

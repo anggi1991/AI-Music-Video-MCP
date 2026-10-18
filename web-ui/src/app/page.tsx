@@ -38,6 +38,7 @@ export default function StudioDashboard() {
   const [genreProfile, setGenreProfile] = useState("metalcore");
   const [targetLufs, setTargetLufs] = useState(-9.0);
   const [autoVst3, setAutoVst3] = useState(true);
+  const [autoLaunchDaw, setAutoLaunchDaw] = useState(true);
 
   // Separation Toggles
   const [splitVocals, setSplitVocals] = useState(false);
@@ -195,6 +196,9 @@ export default function StudioDashboard() {
           split_vocal_substems: splitVocals,
           split_orchestral_substems: splitOrchestra,
           draft_name: capcutDraftName,
+          generate_als: true,
+          launch_ableton: autoLaunchDaw,
+          launch_reaper: autoLaunchDaw,
           ...customParams,
         },
       };
@@ -218,6 +222,9 @@ export default function StudioDashboard() {
             const t = data.result.telemetry;
             addLog(`VRAM telemetry: ${t.device}; ${t.duration_sec ?? "n/a"}s; allocated ${t.peak_allocated_mb ?? "n/a"} MB; reserved ${t.peak_reserved_mb ?? "n/a"} MB.`);
           }
+        }
+        if (data.message) {
+          addLog(`${data.message}`);
         }
         if (data.stdout) {
           addLog(`Agent Output: ${data.stdout}`);
@@ -760,7 +767,7 @@ export default function StudioDashboard() {
                   />
                 </div>
 
-                <div className="flex items-center">
+                <div className="flex flex-col space-y-2 justify-center">
                   <label className="flex items-center space-x-2 text-xs font-semibold text-slate-300 cursor-pointer">
                     <input
                       type="checkbox"
@@ -769,6 +776,16 @@ export default function StudioDashboard() {
                       className="w-4 h-4 accent-cyan-500 cursor-pointer"
                     />
                     <span>Auto-Apply Flagship VST3 Chains (Ozone / FabFilter)</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2 text-xs font-semibold text-indigo-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoLaunchDaw}
+                      onChange={(e) => setAutoLaunchDaw(e.target.checked)}
+                      className="w-4 h-4 accent-indigo-500 cursor-pointer"
+                    />
+                    <span>Auto-Launch DAW (Ableton / REAPER) on Generation</span>
                   </label>
                 </div>
               </div>
@@ -793,9 +810,9 @@ export default function StudioDashboard() {
                 <button
                   onClick={() => handleExecute("create_ableton")}
                   disabled={executing}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 cursor-pointer"
                 >
-                  Generate Ableton Live Manifest
+                  Generate & Open in Ableton Live (.als)
                 </button>
               </div>
             </div>

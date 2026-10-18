@@ -373,6 +373,197 @@ def generate_reaper_project_rpp(
     }
 
 
+def find_ableton_executable() -> Optional[str]:
+    """Search common paths for Ableton Live executable."""
+    candidates = [
+        r"F:\installer program\Live 12 Suite\Program\Ableton Live 12 Suite.exe",
+        r"C:\Program Files\Ableton\Live 12 Suite\Program\Ableton Live 12 Suite.exe",
+        r"C:\Program Files\Ableton\Live 11 Suite\Program\Ableton Live 11 Suite.exe",
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    start_menu = os.path.expandvars(r"%ProgramData%\Microsoft\Windows\Start Menu\Programs\Ableton Live 12 Suite.lnk")
+    if os.path.isfile(start_menu):
+        try:
+            import subprocess
+            cmd = f'$sh = New-Object -ComObject WScript.Shell; $sh.CreateShortcut("{start_menu}").TargetPath'
+            res = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, timeout=5)
+            target = res.stdout.strip()
+            if target and os.path.isfile(target):
+                return target
+        except Exception:
+            pass
+    return None
+
+
+def launch_ableton_project(als_path: str) -> bool:
+    """Launch Ableton Live with the specified .als project file."""
+    if not os.path.isfile(als_path):
+        return False
+    exe = find_ableton_executable()
+    try:
+        import subprocess
+        abs_als = os.path.abspath(als_path)
+        if exe and os.path.isfile(exe):
+            subprocess.Popen([exe, abs_als], close_fds=True)
+            return True
+        elif hasattr(os, "startfile"):
+            os.startfile(abs_als)
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def generate_ableton_live_set_als(
+    project_name: str,
+    bpm: float,
+    stem_paths: Optional[Dict[str, str]] = None,
+    output_als_path: Optional[str] = None,
+) -> str:
+    """Generate a native Ableton Live Set (.als) with stem audio tracks and BPM."""
+    import copy
+    import gzip
+    import xml.etree.ElementTree as ET
+
+    if not output_als_path:
+        output_als_path = os.path.join("workspace", "output_audio", f"{project_name}_session.als")
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_als_path)), exist_ok=True)
+
+    module_dir = os.path.dirname(os.path.abspath(__file__))
+    tpl_dir = os.path.join(module_dir, "templates")
+    base_als_tpl = os.path.join(tpl_dir, "base_liveset_template.als")
+    clip_xml_tpl = os.path.join(tpl_dir, "audioclip_template.xml")
+
+    # Fallback to system Live 12 templates if local templates missing
+    if not os.path.isfile(base_als_tpl):
+        sys_tpl = r"F:\installer program\Live 12 Suite\Resources\Builtin\Templates\DefaultLiveSet.als"
+        if os.path.isfile(sys_tpl):
+            base_als_tpl = sys_tpl
+
+    if not os.path.isfile(base_als_tpl):
+        raise FileNotFoundError(f"Base Ableton Live template not found at {base_als_tpl}")
+
+    with gzip.open(base_als_tpl, "rb") as f:
+        root = ET.fromstring(f.read())
+
+    ls = root.find("LiveSet")
+    if ls is None:
+        raise ValueError("Invalid LiveSet XML: missing LiveSet root")
+
+    # Set project BPM
+    main_track = ls.find("MainTrack")
+    if main_track is not None:
+        mixer = main_track.find("DeviceChain/Mixer")
+        if mixer is not None:
+            tempo = mixer.find("Tempo/Manual")
+            if tempo is not None:
+                tempo.attrib["Value"] = str(float(bpm))
+
+    tracks = ls.find("Tracks")
+    if tracks is None:
+        tracks = ET.SubElement(ls, "Tracks")
+
+    # Find sample AudioTrack to clone
+    sample_at = None
+    for child in list(tracks):
+        if child.tag == "AudioTrack":
+            sample_at = copy.deepcopy(child)
+            break
+
+    if sample_at is None:
+        raise ValueError("Could not find AudioTrack template in base LiveSet")
+
+    # Load clip template
+    clip_template = None
+    if os.path.isfile(clip_xml_tpl):
+        clip_template = ET.parse(clip_xml_tpl).getroot()
+
+    # Clear existing tracks in template
+    for child in list(tracks):
+        tracks.remove(child)
+
+    stems = dict(stem_paths or {})
+    track_id = 100
+    clip_id = 1000
+
+    for name, path in stems.items():
+        if not path or not os.path.isfile(path):
+            continue
+        try:
+            info = sf.info(path)
+            beats = info.duration / (60.0 / max(bpm, 1.0))
+        except Exception:
+            beats = 64.0
+            info = None
+
+        t = copy.deepcopy(sample_at)
+        t.attrib["Id"] = str(track_id)
+        track_id += 1
+
+        # Format display name
+        display_name = name.replace("_", " ").title()
+        eff_name = t.find("Name/EffectiveName")
+        if eff_name is not None:
+            eff_name.attrib["Value"] = display_name
+        usr_name = t.find("Name/UserName")
+        if usr_name is not None:
+            usr_name.attrib["Value"] = display_name
+
+        if clip_template is not None:
+            clip = copy.deepcopy(clip_template)
+            clip.attrib["Id"] = str(clip_id)
+            clip_id += 1
+            clip.attrib["Time"] = "0"
+
+            c_start = clip.find("CurrentStart")
+            if c_start is not None:
+                c_start.attrib["Value"] = "0"
+            c_end = clip.find("CurrentEnd")
+            if c_end is not None:
+                c_end.attrib["Value"] = str(beats)
+            c_name = clip.find("Name")
+            if c_name is not None:
+                c_name.attrib["Value"] = display_name
+
+            is_warped = clip.find("IsWarped")
+            if is_warped is not None:
+                is_warped.attrib["Value"] = "false"
+
+            sr = clip.find("SampleRef")
+            if sr is not None:
+                fr = sr.find("FileRef")
+                if fr is not None:
+                    p_elem = fr.find("Path")
+                    if p_elem is not None:
+                        p_elem.attrib["Value"] = os.path.abspath(path).replace("\\", "/")
+                    rp_elem = fr.find("RelativePath")
+                    if rp_elem is not None:
+                        rp_elem.attrib["Value"] = os.path.basename(path)
+                if info:
+                    dur = sr.find("DefaultDuration")
+                    if dur is not None:
+                        dur.attrib["Value"] = str(int(info.frames))
+                    srate = sr.find("DefaultSampleRate")
+                    if srate is not None:
+                        srate.attrib["Value"] = str(int(info.samplerate))
+
+            events = t.find("DeviceChain/MainSequencer/Sample/ArrangerAutomation/Events")
+            if events is not None:
+                for old_c in list(events):
+                    events.remove(old_c)
+                events.append(clip)
+
+        tracks.append(t)
+
+    with gzip.open(output_als_path, "wb") as f:
+        f.write(ET.tostring(root, encoding="utf-8", xml_declaration=True))
+
+    return output_als_path
+
+
 def export_ableton_als_session_manifest(
     project_name: str,
     bpm: float,
@@ -381,8 +572,11 @@ def export_ableton_als_session_manifest(
     sync_map_json_path: Optional[str] = None,
     vst3_assignments: Optional[Dict[str, Any]] = None,
     output_dir: str = "workspace/output_audio",
+    generate_als: bool = True,
+    launch_ableton: bool = False,
+    output_als_path: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Generate an Ableton Live Session Manifest JSON detailing track groups, routing, and VST3 assignments."""
+    """Generate an Ableton Live Session Manifest JSON detailing track groups, routing, and VST3 assignments, and optionally generate/launch .als."""
     os.makedirs(output_dir, exist_ok=True)
     manifest_path = os.path.join(output_dir, f"{project_name}_ableton_manifest.json")
     vst_reg = scan_installed_vst3_plugins()
@@ -434,9 +628,30 @@ def export_ableton_als_session_manifest(
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
 
+    als_path = None
+    if generate_als:
+        if not output_als_path:
+            output_als_path = os.path.join(output_dir, f"{project_name}_session.als")
+        try:
+            als_path = generate_ableton_live_set_als(
+                project_name=project_name,
+                bpm=bpm,
+                stem_paths=stems,
+                output_als_path=output_als_path,
+            )
+        except Exception as e:
+            als_path = None
+
+    launched = False
+    if launch_ableton and als_path:
+        launched = launch_ableton_project(als_path)
+
     return {
         "status": "success",
         "project_name": project_name,
         "manifest_path": manifest_path,
+        "als_path": als_path,
+        "launched": launched,
         "groups_count": len(groups),
     }
+

@@ -224,3 +224,22 @@ class SongSyncMap(BaseModel):
 - Inference runs one model at a time. CUDA telemetry records the measured device, duration, peak allocated memory, and peak reserved memory. CUDA out-of-memory returns a structured error with smaller-segment and CPU fallback suggestions; no static VRAM ceiling is promised.
 - Tab 1 previews generated WAV stems through a range-capable local audio endpoint. The endpoint only serves files rooted under `workspace/input_stems/`.
 - Verification covers workspace source-path isolation, model metadata, VRAM telemetry formatting, Python unit tests, and the production Next.js build/typecheck.
+
+## Phase 12: Native Ableton Live Set (.als) Generation & DAW Auto-Launch Integration
+
+- **Native `.als` Project Generation**: Upgraded `daw_bridge.py` and `export_ableton_als_session_manifest` with `generate_ableton_live_set_als`.
+  - Self-contained Live 12 XML templates (`base_liveset_template.als` and `audioclip_template.xml`) stored in `servers/daw_studio_mcp/templates/`.
+  - Stems (`vocals`, `drums`, `bass`, `guitars`, `piano`, `other`, orchestral sub-stems) are automatically mapped to individual AudioTracks with arrangement timeline clips.
+  - Project BPM and time parameters are accurately written into `MainTrack/DeviceChain/Mixer/Tempo/Manual`.
+  - Raw unwarped playback (`IsWarped = false`) ensures bit-accurate audio alignment with original stems.
+- **DAW Auto-Launch**:
+  - `find_ableton_executable` automatically locates installed Ableton Live 12 / 11 instances (including standalone installation directories, Program Files, and Start Menu shortcuts).
+  - `launch_ableton_project` triggers native launch via subprocess or Windows file association (`os.startfile`).
+- **Backward Compatibility**:
+  - `_ableton_manifest.json` continues to be generated alongside `_session.als` for all downstream and test assertions.
+- **Studio Web UI Integration**:
+  - Tab 2 features an "Auto-Launch DAW on Generation" toggle and an upgraded action button: `Generate & Open in Ableton Live (.als)`.
+  - Auto-discovery of stems directly from `workspace/input_stems/<project_name>/` when no explicit paths are supplied.
+- **Verification**:
+  - 48/48 Python unit tests passing (`tests/test_phase12_ableton_project.py`).
+  - Next.js TypeScript check (`npx tsc --noEmit`) and production build (`npm run build`) passing with zero errors.
