@@ -129,6 +129,100 @@ def get_genre_dsp_chain(instrument: str, genre: str) -> pb.Pedalboard:
     return board
 
 
+# Genre-tailored Stem Volume Balancing Matrix (Gain Staging per Genre)
+GENRE_STEM_BALANCE_PROFILES: Dict[str, Dict[str, float]] = {
+    "metalcore": {
+        "vocal_lead": 0.95,
+        "vocal_co_lead": 0.85,
+        "vocal_backing": 0.70,
+        "vocals": 0.95,
+        "drums": 1.00,          # Heavy hitting transient kick & snare
+        "bass": 0.90,           # Gritty distorted low-end chug
+        "guitar_rhythm": 0.92,  # Wide wall-of-sound rhythm guitars
+        "guitar_lead": 0.95,    # Piercing solos & riffs
+        "guitar_additional": 0.75,
+        "guitar": 0.92,
+        "synth": 0.60,
+        "piano": 0.60,
+        "violin": 0.65,
+        "cello": 0.65,
+        "string": 0.65,
+        "brass": 0.70,
+        "choir": 0.70,
+        "other": 0.65,
+    },
+    "rock": {
+        "vocal_lead": 1.00,
+        "vocal_co_lead": 0.85,
+        "vocal_backing": 0.75,
+        "vocals": 1.00,
+        "drums": 0.92,          # Warm dynamic acoustic drums
+        "bass": 0.85,           # Round bass foundation
+        "guitar_rhythm": 0.85,  # Organic crunch guitars
+        "guitar_lead": 0.88,
+        "guitar_additional": 0.70,
+        "guitar": 0.85,
+        "synth": 0.65,
+        "piano": 0.70,
+        "violin": 0.70,
+        "string": 0.70,
+        "brass": 0.65,
+        "other": 0.65,
+    },
+    "cinematic": {
+        "vocal_lead": 0.85,
+        "vocal_co_lead": 0.75,
+        "vocal_backing": 0.75,
+        "vocals": 0.85,
+        "drums": 0.75,          # Subdued into orchestral background
+        "bass": 0.80,
+        "guitar_rhythm": 0.45,  # Guitars reduced to background texture
+        "guitar_lead": 0.50,
+        "guitar": 0.45,
+        "violin": 1.00,         # Soaring lead strings
+        "cello": 1.00,          # Rich resonant low strings
+        "string": 0.98,         # Expansive orchestral ensemble
+        "brass": 0.95,          # Horns, trumpets & cinematic brass
+        "woodwind": 0.90,
+        "choir": 0.95,          # Epic choral pads
+        "synth": 0.75,
+        "piano": 0.90,          # Clear emotional piano
+        "other": 0.85,
+    },
+    "pop": {
+        "vocal_lead": 1.00,     # Intimate, crystal-clear vocal prominence
+        "vocal_co_lead": 0.82,
+        "vocal_backing": 0.75,
+        "vocals": 1.00,
+        "drums": 0.85,          # Controlled tight groove
+        "bass": 0.85,           # Clean sub/mid bass
+        "guitar_rhythm": 0.55,  # Guitars tucked behind lead vocal
+        "guitar_lead": 0.60,
+        "guitar": 0.55,
+        "synth": 0.80,          # Modern melodic synths & keys
+        "piano": 0.85,
+        "string": 0.70,
+        "brass": 0.65,
+        "other": 0.60,
+    },
+    "edm": {
+        "vocal_lead": 0.90,
+        "vocal_co_lead": 0.80,
+        "vocal_backing": 0.75,
+        "vocals": 0.90,
+        "drums": 1.00,          # Driving sidechained kick & punchy claps
+        "bass": 1.00,           # Massive sub-bass / 808
+        "synth": 0.95,          # Dominant supersaws, plucks & arps
+        "piano": 0.75,
+        "guitar_rhythm": 0.40,  # Background acoustic texture
+        "guitar_lead": 0.45,
+        "guitar": 0.40,
+        "string": 0.65,
+        "brass": 0.70,
+        "other": 0.65,
+    },
+}
+
 def auto_mix_and_master_stems(
     stem_paths: Dict[str, str],
     genre_profile: str = "metalcore",
@@ -195,27 +289,13 @@ def auto_mix_and_master_stems(
     # 2. Mathematical stem balancing and summing
     mixed_audio = np.zeros((2, max_len), dtype=np.float32)
 
-    # Stem balance weights
-    stem_balance_weights = {
-        "vocal_lead": 1.0,
-        "vocal_co_lead": 0.88,
-        "vocal_backing": 0.72,
-        "vocals": 1.0,
-        "drums": 1.0,
-        "bass": 0.85,
-        "guitar_rhythm": 0.82,
-        "guitar_lead": 0.88,
-        "guitar_additional": 0.65,
-        "guitar": 0.80,
-        "violin": 0.78,
-        "cello": 0.78,
-        "string": 0.72,
-        "brass": 0.75,
-        "woodwind": 0.70,
-        "choir": 0.72,
-        "synth": 0.65,
-        "piano": 0.65,
-    }
+    # Resolve genre-specific stem balance profile
+    genre_key = "metalcore"
+    for gk in ["metal", "rock", "cinematic", "pop", "edm"]:
+        if gk in genre_profile.lower():
+            genre_key = "metalcore" if gk == "metal" else gk
+            break
+    stem_balance_weights = GENRE_STEM_BALANCE_PROFILES.get(genre_key, GENRE_STEM_BALANCE_PROFILES["metalcore"])
 
     for stem_name, audio_data in processed_stems.items():
         weight = 0.8
