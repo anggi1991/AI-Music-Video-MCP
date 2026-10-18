@@ -151,6 +151,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (action === "reveal_in_explorer") {
+      const rawTarget = params.file_path || "workspace/output_audio";
+      let fullTarget = path.isAbsolute(rawTarget) ? rawTarget : path.resolve(PROJECT_ROOT, rawTarget);
+      try {
+        if (fs.existsSync(fullTarget)) {
+          spawn("explorer.exe", [`/select,${fullTarget}`], { detached: true });
+        } else {
+          spawn("explorer.exe", [path.dirname(fullTarget)], { detached: true });
+        }
+        return NextResponse.json({ status: "success", message: "Explorer launched" });
+      } catch (err: any) {
+        return NextResponse.json({ status: "error", message: err.message }, { status: 500 });
+      }
+    }
+
     const cleanParams: Record<string, any> = {};
     for (const [k, v] of Object.entries(params)) {
       if (typeof v === "string") {
