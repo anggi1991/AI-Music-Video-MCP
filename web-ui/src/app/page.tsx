@@ -532,94 +532,136 @@ export default function StudioDashboard() {
                 <input value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Nama proyek dari file sumber" className="w-full max-w-lg bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200" />
               </label>
 
-              <label className="block mb-5 max-w-lg">
-                <span className="text-xs text-slate-400 block mb-1">Separation backend</span>
-                <select value={separationModel} onChange={(e) => setSeparationModel(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 cursor-pointer">
-                  <option value="htdemucs_6s">Demucs HT 6-source estimate (Verified Pretrained AI Model)</option>
-                  <option value="experimental_dsp_masks">Experimental Heuristic DSP Mask (Fast CPU Spectral Filter ~2s)</option>
-                  <option value="cascaded_separation">Cascaded models (unavailable: no verified stages configured)</option>
+              {/* Step 1: Core 6-Stem Engine Selection */}
+              <div className="mb-6 p-4 bg-slate-950/80 border border-slate-800 rounded-2xl max-w-2xl shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-violet-600 text-white flex items-center justify-center text-[10px] font-bold shadow-md shadow-violet-600/30">1</span>
+                    Primary 6-Stem Engine (Core Separation)
+                  </span>
+                  <span className="text-[10px] bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 px-2 py-0.5 rounded-full font-mono">
+                    6 Stems Output
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mb-2.5">
+                  Select the primary model used to isolate the stereo mix into 6 discrete instrument stems: <span className="text-slate-200 font-medium font-mono">Vocals, Drums, Bass, Guitar, Piano, Other</span>.
+                </p>
+                <select
+                  value={separationModel}
+                  onChange={(e) => setSeparationModel(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl p-2.5 text-xs text-slate-100 font-medium cursor-pointer focus:border-violet-500 focus:outline-none"
+                >
+                  <option value="htdemucs_6s">Demucs HT 6-Source AI (Verified Neural Network Checkpoint)</option>
+                  <option value="experimental_dsp_masks">Fast DSP Preview Filterbank (Instant ~2s Spectral Heuristic)</option>
+                  <option value="cascaded_separation">Cascaded Multi-Stage Pipeline (Unavailable: requires verified models)</option>
                 </select>
-                <span className="text-[11px] text-slate-400 block mt-1">
-                  {separationModel === "htdemucs_6s" && "Pretrained 6-source Demucs neural network (vocals, drums, bass, guitar, piano, other). High accuracy, takes ~4–8 min on CPU."}
-                  {separationModel === "experimental_dsp_masks" && "Instant mathematical STFT filterbank & Mid/Side separation. Finishes in ~2–3 seconds without heavy neural net inference."}
-                  {separationModel === "cascaded_separation" && "Cascade remains unavailable until verified task-specific weights and output mappings are configured."}
-                </span>
-              </label>
+                <div className="text-[11px] text-slate-400 mt-2.5 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/60">
+                  {separationModel === "htdemucs_6s" && "✨ Deep Learning AI: Full 6-source neural net separation. High acoustic isolation. Takes ~15–30s on NVIDIA RTX GPU or ~4–8 min on CPU."}
+                  {separationModel === "experimental_dsp_masks" && "⚡ Fast DSP Preview: Instant mathematical STFT & Mid/Side filterbank (~2 seconds). Useful for rapid testing without neural net load."}
+                  {separationModel === "cascaded_separation" && "⚠️ Cascade remains unavailable until verified task-specific weights and output mappings are configured."}
+                </div>
 
-              <label className="block mb-5 max-w-lg">
-                <span className="text-xs text-slate-400 block mb-1">Model segment override (seconds, optional)</span>
-                <input type="number" min="1" step="0.5" value={segmentSec} onChange={(e) => setSegmentSec(e.target.value)} placeholder="Use model default" className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200" />
-                <span className="text-[11px] text-slate-500 block mt-1">If CUDA runs out of memory, retry with a shorter segment. Leave blank to use the model's default split.</span>
-              </label>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <label className="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer">
-                  <div>
-                    <div className="text-xs font-bold text-slate-200">
-                      Experimental Heuristic DSP Mask (Not Source Separation) — vocals
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Center/side and pitch filters can retain instrument bleed
-                    </div>
+                <div className="mt-3 pt-3 border-t border-slate-800/60">
+                  <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+                    <span>Model segment override (optional)</span>
+                    <span className="text-[10px] text-slate-500">Leave blank for model default</span>
                   </div>
                   <input
-                    type="checkbox"
-                    checked={splitVocals}
-                    onChange={(e) => setSplitVocals(e.target.checked)}
-                    className="w-4 h-4 accent-violet-600 cursor-pointer"
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    value={segmentSec}
+                    onChange={(e) => setSegmentSec(e.target.value)}
+                    placeholder="e.g. 7.8 (Use shorter segment if CUDA runs OOM)"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200"
                   />
-                </label>
+                </div>
+              </div>
 
-                <label className="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer">
-                  <div>
-                    <div className="text-xs font-bold text-slate-200">
-                      Experimental Heuristic DSP Mask (Not Source Separation) — guitar
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Frequency, transient and stereo masks can retain other instruments
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={splitGuitars}
-                    onChange={(e) => setSplitGuitars(e.target.checked)}
-                    className="w-4 h-4 accent-violet-600 cursor-pointer"
-                  />
-                </label>
+              {/* Step 2: Optional Sub-Track Slicing */}
+              <div className="mb-6 p-4 bg-slate-950/80 border border-slate-800 rounded-2xl max-w-2xl shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] font-bold shadow-md shadow-amber-600/30">2</span>
+                    Sub-Track Decomposition (Optional Post-Processing)
+                  </span>
+                  <span className="text-[10px] bg-amber-950/80 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded-full font-mono">
+                    Cascaded DSP Slicing
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mb-3.5 leading-relaxed">
+                  The primary engine isolates 6 core stems. Check options below if you want the system to further slice specific stems into sub-tracks (uses secondary Mid/Side & spectral salience filtering):
+                </p>
 
-                <label className="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer">
-                  <div>
-                    <div className="text-xs font-bold text-slate-200">
-                      Experimental Heuristic DSP Mask (Not Source Separation) — orchestra
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="flex items-start justify-between p-3.5 bg-slate-900/90 rounded-xl border border-slate-800/90 hover:border-slate-700 transition cursor-pointer">
+                    <div className="pr-3">
+                      <div className="text-xs font-semibold text-slate-200">
+                        Split Guitar Stem
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                        Slices <code className="text-cyan-400 font-mono">guitar.wav</code> into Lead, Rhythm, & Extra guitars
+                      </div>
                     </div>
-                    <div className="text-[11px] text-slate-400">
-                      Broad spectral filters; labels and stems are not source-isolated
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={splitOrchestra}
-                    onChange={(e) => setSplitOrchestra(e.target.checked)}
-                    className="w-4 h-4 accent-violet-600 cursor-pointer"
-                  />
-                </label>
+                    <input
+                      type="checkbox"
+                      checked={splitGuitars}
+                      onChange={(e) => setSplitGuitars(e.target.checked)}
+                      className="w-4 h-4 accent-violet-600 cursor-pointer mt-1"
+                    />
+                  </label>
 
-                <label className="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer">
-                  <div>
-                    <div className="text-xs font-bold text-slate-200">
-                      Post-separation filters and gate
+                  <label className="flex items-start justify-between p-3.5 bg-slate-900/90 rounded-xl border border-slate-800/90 hover:border-slate-700 transition cursor-pointer">
+                    <div className="pr-3">
+                      <div className="text-xs font-semibold text-slate-200">
+                        Split Vocal Stem
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                        Slices <code className="text-cyan-400 font-mono">vocals.wav</code> into Lead, Co-Lead, & Backing vocals
+                      </div>
                     </div>
-                    <div className="text-[11px] text-slate-400">
-                      Can suppress quiet notes and tails; does not separate instruments
+                    <input
+                      type="checkbox"
+                      checked={splitVocals}
+                      onChange={(e) => setSplitVocals(e.target.checked)}
+                      className="w-4 h-4 accent-violet-600 cursor-pointer mt-1"
+                    />
+                  </label>
+
+                  <label className="flex items-start justify-between p-3.5 bg-slate-900/90 rounded-xl border border-slate-800/90 hover:border-slate-700 transition cursor-pointer">
+                    <div className="pr-3">
+                      <div className="text-xs font-semibold text-slate-200">
+                        Extract Orchestral Sections
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                        Scans <code className="text-cyan-400 font-mono">other.wav</code> to extract Strings, Brass, & Winds
+                      </div>
                     </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={antiBleedGate}
-                    onChange={(e) => setAntiBleedGate(e.target.checked)}
-                    className="w-4 h-4 accent-violet-600 cursor-pointer"
-                  />
-                </label>
+                    <input
+                      type="checkbox"
+                      checked={splitOrchestra}
+                      onChange={(e) => setSplitOrchestra(e.target.checked)}
+                      className="w-4 h-4 accent-violet-600 cursor-pointer mt-1"
+                    />
+                  </label>
+
+                  <label className="flex items-start justify-between p-3.5 bg-slate-900/90 rounded-xl border border-slate-800/90 hover:border-slate-700 transition cursor-pointer">
+                    <div className="pr-3">
+                      <div className="text-xs font-semibold text-slate-200">
+                        Anti-Bleed Noise Gate
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                        Suppresses quiet tails and cross-instrument acoustic bleed
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={antiBleedGate}
+                      onChange={(e) => setAntiBleedGate(e.target.checked)}
+                      className="w-4 h-4 accent-violet-600 cursor-pointer mt-1"
+                    />
+                  </label>
+                </div>
               </div>
 
               <button
