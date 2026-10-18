@@ -223,7 +223,14 @@ def generate_reaper_project_rpp(
             if marker_count >= 50:
                 break
 
-    # Master FX List Definition (Standard REAPER 7 structure)
+    # Master Track & FX List Definition (Standard REAPER 7 structure)
+    rpp_lines.extend([
+        "  <MASTERTRACK",
+        "    SHOW 1",
+        "    PEAKCOL 16576",
+        "    BEAT 0",
+        "  >",
+    ])
     if master_fx_str:
         rpp_lines.extend([
             "  <MASTERFXLIST",

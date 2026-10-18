@@ -391,6 +391,18 @@ export default function StudioDashboard() {
             <option value="codex">🧠 OpenAI Codex CLI</option>
           </select>
 
+          {workspace?.hardware?.cuda_available ? (
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/60 border border-emerald-500/30 rounded-lg text-emerald-300 text-xs font-mono font-medium" title="CUDA Hardware Acceleration Active">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{workspace.hardware.device_name}</span>
+            </div>
+          ) : (
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 text-xs font-mono font-medium">
+              <Cpu className="w-3.5 h-3.5" />
+              <span>CPU Inference Mode</span>
+            </div>
+          )}
+
           {workspace?.audio_candidates?.length > 0 ? (
             <select
               value={audioPath}
@@ -561,7 +573,11 @@ export default function StudioDashboard() {
                   <option value="cascaded_separation">Cascaded Multi-Stage Pipeline (Unavailable: requires verified models)</option>
                 </select>
                 <div className="text-[11px] text-slate-400 mt-2.5 leading-relaxed bg-slate-900/60 p-2.5 rounded-lg border border-slate-800/60">
-                  {separationModel === "htdemucs_6s" && "✨ Deep Learning AI: Full 6-source neural net separation. High acoustic isolation. Takes ~15–30s on NVIDIA RTX GPU or ~4–8 min on CPU."}
+                  {separationModel === "htdemucs_6s" && (
+                    workspace?.hardware?.cuda_available
+                      ? `⚡ Deep Learning AI: Full 6-source neural net separation accelerated by ${workspace.hardware.device_name} (~15–30s). High acoustic isolation.`
+                      : "⚡ Deep Learning AI: Full 6-source neural net separation running on CPU (~4–8 min). High acoustic isolation."
+                  )}
                   {separationModel === "experimental_dsp_masks" && "⚡ Fast DSP Preview: Instant mathematical STFT & Mid/Side filterbank (~2 seconds). Useful for rapid testing without neural net load."}
                   {separationModel === "cascaded_separation" && "⚠️ Cascade remains unavailable until verified task-specific weights and output mappings are configured."}
                 </div>
@@ -1365,7 +1381,7 @@ export default function StudioDashboard() {
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Engine / Hardware</span>
                 <span className="text-xs font-semibold text-slate-200 block truncate">
-                  {activeOperation === "separate_stems" ? "htdemucs_6s (CPU Inference)" : "Python DSP Engine"}
+                  {activeOperation === "separate_stems" ? (workspace?.hardware?.cuda_available ? `htdemucs_6s (${workspace.hardware.device_name} CUDA)` : "htdemucs_6s (CPU Inference)") : "Python DSP Engine"}
                 </span>
               </div>
             </div>
@@ -1378,7 +1394,9 @@ export default function StudioDashboard() {
               </p>
               <p className="text-[11px] text-slate-400">
                 {activeOperation === "separate_stems"
-                  ? "Demucs 6-stem AI separation is running on CPU. Typical processing time is ~4-8 minutes depending on audio length. Audio stems are actively being written to workspace/input_stems/ in real time."
+                  ? (workspace?.hardware?.cuda_available
+                      ? `Demucs 6-stem AI separation is running on ${workspace.hardware.device_name} GPU. Typical processing time is ~15–30 seconds. Audio stems are actively being written to workspace/input_stems/ in real time.`
+                      : "Demucs 6-stem AI separation is running on CPU. Typical processing time is ~4-8 minutes depending on audio length. Audio stems are actively being written to workspace/input_stems/ in real time.")
                   : "Task is executing in background. Output files will be synced automatically."}
               </p>
             </div>

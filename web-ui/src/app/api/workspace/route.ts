@@ -32,6 +32,16 @@ export async function GET() {
       return files;
     };
 
+    let hardware = { cuda_available: false, device_name: "CPU" };
+    const hardwarePath = path.join(workspaceDir, ".system_hardware.json");
+    if (fs.existsSync(hardwarePath)) {
+      try {
+        hardware = JSON.parse(fs.readFileSync(hardwarePath, "utf-8"));
+      } catch {
+        // ignore
+      }
+    }
+
     let syncMap = null;
     const syncMapPath = path.join(outputTabsDir, "visual_sync_map.json");
     if (fs.existsSync(syncMapPath)) {
@@ -64,7 +74,9 @@ export async function GET() {
 
     return NextResponse.json({
       status: "success",
+      hardware,
       workspace: {
+        hardware,
         audio_candidates: audioCandidates,
         source_status: audioCandidates.length ? "ready" : "empty",
         input_stems: getFiles(inputStemsDir, true),
