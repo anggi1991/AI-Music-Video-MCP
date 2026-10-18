@@ -345,6 +345,10 @@ export default function StudioDashboard() {
     addLog(`Copied prompt to clipboard: "${text.slice(0, 50)}..."`);
   };
 
+  const DEMUCS_CORE_STEM_NAMES = new Set(["vocals.wav", "drums.wav", "bass.wav", "guitar.wav", "piano.wav", "synth.wav", "other.wav"]);
+  const primaryStems = stemPreviews.filter((s: any) => DEMUCS_CORE_STEM_NAMES.has(s.name.toLowerCase()));
+  const subStems = stemPreviews.filter((s: any) => !DEMUCS_CORE_STEM_NAMES.has(s.name.toLowerCase()));
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-violet-600 selection:text-white">
       {/* ============================================================== */}
@@ -633,21 +637,62 @@ export default function StudioDashboard() {
                 )}
               </button>
               {stemPreviews.length > 0 && (
-                <section className="mt-6 border-t border-slate-800 pt-5">
-                  <h3 className="text-sm font-bold mb-3">Generated stem previews</h3>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {stemPreviews.map((stem: any) => (
-                      <div key={stem.relativePath} className="rounded-xl border border-slate-800 bg-slate-950 p-3">
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <span className="text-xs font-semibold text-slate-200">{stem.name}</span>
-                          <span className={`text-[10px] rounded-full px-2 py-1 ${stem.sourceType === "Experimental DSP Mask" ? "bg-amber-950 text-amber-200" : "bg-cyan-950 text-cyan-200"}`}>
-                            {stem.sourceType}
+                <section className="mt-6 border-t border-slate-800 pt-5 space-y-6">
+                  {/* Primary 6-Source AI Stems */}
+                  {primaryStems.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-100">Demucs AI Primary 6-Source Stems</span>
+                          <span className="text-[10px] bg-cyan-950/80 border border-cyan-800/60 text-cyan-300 px-2 py-0.5 rounded-full font-mono">
+                            {primaryStems.length} / 6 Verified Stems
                           </span>
                         </div>
-                        <audio controls preload="none" className="w-full" src={`/api/audio?file=${encodeURIComponent(stem.relativePath)}`} />
+                        <span className="text-[11px] text-slate-400">Pretrained Neural Network Source Separation</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {primaryStems.map((stem: any) => (
+                          <div key={stem.relativePath} className="rounded-xl border border-cyan-900/40 bg-slate-950/90 p-3 shadow-sm">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-semibold text-cyan-200 font-mono">{stem.name}</span>
+                              <span className="text-[10px] rounded-full px-2 py-0.5 bg-cyan-950 text-cyan-300 border border-cyan-800/50">
+                                Pretrained AI Model
+                              </span>
+                            </div>
+                            <audio controls preload="none" className="w-full" src={`/api/audio?file=${encodeURIComponent(stem.relativePath)}`} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Secondary Sub-Stem Decompositions */}
+                  {subStems.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800/60">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-100">Cascaded Sub-Stem Decompositions</span>
+                          <span className="text-[10px] bg-amber-950/80 border border-amber-800/60 text-amber-300 px-2 py-0.5 rounded-full font-mono">
+                            {subStems.length} Sub-stems
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-amber-400/90">Secondary Heuristic DSP Filterbank (Experimental)</span>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {subStems.map((stem: any) => (
+                          <div key={stem.relativePath} className="rounded-xl border border-amber-900/30 bg-slate-950/90 p-3 shadow-sm">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="text-xs font-semibold text-amber-200 font-mono">{stem.name}</span>
+                              <span className="text-[10px] rounded-full px-2 py-0.5 bg-amber-950 text-amber-300 border border-amber-800/50">
+                                Heuristic DSP Mask
+                              </span>
+                            </div>
+                            <audio controls preload="none" className="w-full" src={`/api/audio?file=${encodeURIComponent(stem.relativePath)}`} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </section>
               )}
             </div>
@@ -1292,28 +1337,60 @@ export default function StudioDashboard() {
             </div>
 
             {/* Live Detected Output Stems List */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between text-xs text-slate-300 font-semibold mb-2">
-                <span>Real-Time Detected Stems</span>
-                <span className="text-[11px] text-emerald-400 font-normal">
-                  {stemPreviews.length} stem{stemPreviews.length === 1 ? "" : "s"} ready
-                </span>
+            <div className="mb-4 space-y-3">
+              {/* Demucs 6 Primary Stems */}
+              <div>
+                <div className="flex items-center justify-between text-xs text-slate-300 font-semibold mb-1.5">
+                  <span className="flex items-center gap-1.5 text-cyan-400">
+                    <span>Demucs AI Primary Stems</span>
+                    <span className="text-[10px] text-slate-500 font-normal">(Core 6-Source AI)</span>
+                  </span>
+                  <span className="text-[11px] text-cyan-400 font-mono">
+                    {primaryStems.length} / 6 ready
+                  </span>
+                </div>
+
+                {primaryStems.length === 0 ? (
+                  <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 text-center text-xs text-slate-500">
+                    Waiting for Demucs 6-stem AI inference...
+                  </div>
+                ) : (
+                  <div className="max-h-24 overflow-y-auto space-y-1 bg-slate-950/70 border border-slate-800 rounded-xl p-2">
+                    {primaryStems.map((s: any) => (
+                      <div key={s.relativePath} className="flex items-center justify-between text-xs px-2.5 py-1 bg-slate-900/80 rounded-lg border border-cyan-900/30">
+                        <span className="text-cyan-200 font-mono text-[11px]">{s.name}</span>
+                        <span className="text-[10px] text-cyan-400 flex items-center gap-1 font-semibold">
+                          <Check className="w-3 h-3 text-cyan-400" /> AI Isolated
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {stemPreviews.length === 0 ? (
-                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 text-center text-xs text-slate-500">
-                  Waiting for stems to be written to disk...
-                </div>
-              ) : (
-                <div className="max-h-28 overflow-y-auto space-y-1.5 bg-slate-950/70 border border-slate-800 rounded-xl p-2">
-                  {stemPreviews.map((s: any) => (
-                    <div key={s.relativePath} className="flex items-center justify-between text-xs px-2.5 py-1.5 bg-slate-900/80 rounded-lg border border-slate-800/60">
-                      <span className="text-slate-200 font-mono text-[11px]">{s.name}</span>
-                      <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
-                        <Check className="w-3 h-3 text-emerald-400" /> Generated
-                      </span>
-                    </div>
-                  ))}
+              {/* Sub-stems if present */}
+              {subStems.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between text-xs text-slate-300 font-semibold mb-1.5">
+                    <span className="flex items-center gap-1.5 text-amber-400">
+                      <span>Cascaded Sub-Stem Decompositions</span>
+                      <span className="text-[10px] text-slate-500 font-normal">(Secondary Heuristic DSP)</span>
+                    </span>
+                    <span className="text-[11px] text-amber-400 font-mono">
+                      {subStems.length} sub-stem{subStems.length === 1 ? "" : "s"} ready
+                    </span>
+                  </div>
+
+                  <div className="max-h-24 overflow-y-auto space-y-1 bg-slate-950/70 border border-slate-800 rounded-xl p-2">
+                    {subStems.map((s: any) => (
+                      <div key={s.relativePath} className="flex items-center justify-between text-xs px-2.5 py-1 bg-slate-900/80 rounded-lg border border-amber-900/30">
+                        <span className="text-amber-200 font-mono text-[11px]">{s.name}</span>
+                        <span className="text-[10px] text-amber-400 flex items-center gap-1 font-semibold">
+                          <Check className="w-3 h-3 text-amber-400" /> DSP Mask
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -1357,7 +1434,7 @@ export default function StudioDashboard() {
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              {stemPreviews.length} stems ready • Click to expand monitor
+              {primaryStems.length}/6 Demucs stems{subStems.length > 0 ? ` + ${subStems.length} sub-stems` : ''} ready • Click to expand monitor
             </p>
           </div>
         </div>
