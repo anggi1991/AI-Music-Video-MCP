@@ -204,3 +204,25 @@ From the Web UI **Separation backend** selector, you can choose:
 1. **Demucs HT 6-source estimate (`htdemucs_6s`)**: Pretrained neural network separating audio into 6 clean instrument stems. Highly accurate. Runtime: ~15-30s on RTX 3070 GPU / ~4-8 min on CPU.
 2. **Experimental Heuristic DSP Mask (`experimental_dsp_masks`)**: Fast mathematical STFT filterbank & Mid/Side separation (~2-3s on CPU). Ideal for rapid testing without waiting for GPU inference.
 3. **Cascaded Models (`cascaded_separation`)**: Reserved for multi-stage pipelines; disabled until verified weights are configured.
+
+
+---
+
+## Mastering Workflows: "Render Master Audio" vs "DAW Project Session"
+
+The studio offers two complementary mixing and mastering workflows on **Tab 2 (VST3 Mix & DAW Project)**:
+
+### 1. "Render Master Audio (.wav)" — Automated DSP & Reference Mastering
+Choose this when you want an **instant, automated commercial-grade master** without opening a DAW:
+- **Automated Gain Staging & Balancing**: Balances multi-stem gain ratios (vocals, drums, bass, guitars, orchestra) calibrated for your selected Genre Profile.
+- **Acoustic Clean-Up**: Employs high-pass sub-rumble cleanup (below 30–80 Hz) and dynamic notch de-harshing in the 3–4 kHz band.
+- **Spotify Pedalboard & EBU R128 / ITU-R BS.1770-4**: Computes exact integrated loudness via `pyloudnorm` and applies true-peak brickwall limiting at `-0.5 dBTP` to hit your exact target (e.g. `-9.0 LUFS` for Metal/Rock or `-14.0 LUFS` for Streaming).
+- **Matchering 2.0**: Transfers spectral frequency curves and dynamic density from a reference master track.
+- **Output**: Produces a ready-to-release `.wav` master file in `workspace/output_audio/master.wav`.
+
+### 2. "Generate REAPER Project (.rpp)" & "Ableton Live (.als)" — Manual DAW Engineering
+Choose this when you want **full human control in your favorite DAW**:
+- **Zero-Setup Multitrack**: Instantly lays out all separated audio stems across their full duration (e.g. 4+ minutes) into organized folder buses (*VOCAL BUS, GUITAR BUS, BASS & DRUM BUS, ORCHESTRA BUS*).
+- **Flagship VST3 FX Chains**: Slots industry-standard plugin chains on buses and master tracks (*FabFilter Pro-Q, Ozone Maximizer, Pro-L 2, Archetype Gojira X*).
+- **Re-Tracking & MIDI**: Includes armed guitar re-track channels and VSTi MIDI channels (*Superior Drummer 3, BBC Symphony Orchestra*).
+- **Auto-Launch**: Automatically resolves your DAW executable and launches the project immediately.
