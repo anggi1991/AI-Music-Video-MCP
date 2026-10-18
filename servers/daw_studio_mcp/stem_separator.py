@@ -195,13 +195,19 @@ def separate_audio_6stems(
     # never silently present it as source separation.
     demucs_success = False
     demucs_error: Optional[str] = None
+    if model_name == "experimental_dsp_masks":
+        allow_dsp_fallback = True
     try:
         import demucs.pretrained
         import torch
         started_at = time.perf_counter()
         device = "cuda" if torch.cuda.is_available() else "cpu"
         telemetry["device"] = device
-        model = demucs.pretrained.get_model(model_name)
+        if model_name == "experimental_dsp_masks":
+            model = None
+            demucs_error = "Direct fast DSP mask requested."
+        else:
+            model = demucs.pretrained.get_model(model_name)
         if model is not None:
             from demucs.apply import apply_model
             model_sr = int(model.samplerate)

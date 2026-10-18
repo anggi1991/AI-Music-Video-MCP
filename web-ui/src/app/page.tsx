@@ -530,11 +530,16 @@ export default function StudioDashboard() {
 
               <label className="block mb-5 max-w-lg">
                 <span className="text-xs text-slate-400 block mb-1">Separation backend</span>
-                <select value={separationModel} onChange={(e) => setSeparationModel(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200">
-                  <option value="htdemucs_6s">Demucs HT 6-source estimate (default)</option>
+                <select value={separationModel} onChange={(e) => setSeparationModel(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 cursor-pointer">
+                  <option value="htdemucs_6s">Demucs HT 6-source estimate (Verified Pretrained AI Model)</option>
+                  <option value="experimental_dsp_masks">Experimental Heuristic DSP Mask (Fast CPU Spectral Filter ~2s)</option>
                   <option value="cascaded_separation">Cascaded models (unavailable: no verified stages configured)</option>
                 </select>
-                <span className="text-[11px] text-slate-500 block mt-1">Cascade remains unavailable until verified task-specific weights and output mappings are configured.</span>
+                <span className="text-[11px] text-slate-400 block mt-1">
+                  {separationModel === "htdemucs_6s" && "Pretrained 6-source Demucs neural network (vocals, drums, bass, guitar, piano, other). High accuracy, takes ~4–8 min on CPU."}
+                  {separationModel === "experimental_dsp_masks" && "Instant mathematical STFT filterbank & Mid/Side separation. Finishes in ~2–3 seconds without heavy neural net inference."}
+                  {separationModel === "cascaded_separation" && "Cascade remains unavailable until verified task-specific weights and output mappings are configured."}
+                </span>
               </label>
 
               <label className="block mb-5 max-w-lg">
