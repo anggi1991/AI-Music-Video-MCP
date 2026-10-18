@@ -24,6 +24,7 @@ import {
   Settings,
   Send,
   Wand2,
+  Clock,
 } from "lucide-react";
 
 type EngineMode = "direct" | "claude" | "antigravity" | "codex";
@@ -73,6 +74,79 @@ export default function StudioDashboard() {
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [executing, setExecuting] = useState(false);
   const [activeOperation, setActiveOperation] = useState("");
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [minimizedModal, setMinimizedModal] = useState(false);
+
+  // Live elapsed timer & active workspace polling during execution
+  useEffect(() => {
+    let timer: any = null;
+    let pollInterval: any = null;
+
+    if (executing) {
+      setElapsedSec(0);
+      setMinimizedModal(false);
+      timer = setInterval(() => {
+        setElapsedSec((prev) => prev + 1);
+      }, 1000);
+
+      pollInterval = setInterval(() => {
+        refreshWorkspace();
+      }, 3000);
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [executing]);
+
+  const formatTime = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const getOperationTitle = (op: string) => {
+    switch (op) {
+      case "separate_stems":
+        return "Demucs AI Stem Separation & Decomposition";
+      case "mix_master":
+        return "Mixing & Mastering Audio Stems";
+      case "create_reaper_rpp":
+        return "Generating REAPER Session (.rpp)";
+      case "create_ableton":
+        return "Generating Ableton Live Set (.als)";
+      case "transcribe_tabs":
+        return "Transcribing Tablature (.gp5) & Visual Sync Map";
+      case "assemble_capcut":
+        return "Assembling CapCut Desktop Project";
+      case "run_full_pipeline":
+        return "Full AI Production Pipeline (1-Click)";
+      default:
+        return "Processing Studio Task";
+    }
+  };
+
+  const getOperationDescription = (op: string) => {
+    switch (op) {
+      case "separate_stems":
+        return "Separating audio into 6 discrete stems with pretrained htdemucs_6s model.";
+      case "mix_master":
+        return "Applying Flagship VST3 EQ/Compression and True-Peak LUFS normalization.";
+      case "create_reaper_rpp":
+        return "Building 5-bus multi-track REAPER project with VSTi routing.";
+      case "create_ableton":
+        return "Constructing Ableton Live Set (.als) and auto-launching DAW.";
+      case "transcribe_tabs":
+        return "Running Viterbi 4-fret solver & exporting Guitar Pro 5 tabs.";
+      case "assemble_capcut":
+        return "Speed-ramping Veo clips and assembling CapCut draft.";
+      case "run_full_pipeline":
+        return "Executing separation, mixing, transcription, and video assembly.";
+      default:
+        return "Executing requested task in studio engine.";
+    }
+  };
 
   // Prompt Drawer & Override
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -542,9 +616,16 @@ export default function StudioDashboard() {
               <button
                 onClick={() => handleExecute("separate_stems")}
                 disabled={executing || !audioPath || !projectName.trim()}
-                className="bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-violet-600/20 transition-all cursor-pointer"
+                className="bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-violet-600/20 transition-all cursor-pointer flex items-center space-x-2 disabled:opacity-50"
               >
-                Run Stem Decomposition
+                {executing && activeOperation === "separate_stems" ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    <span>Processing Demucs AI Stems ({formatTime(elapsedSec)})...</span>
+                  </>
+                ) : (
+                  <span>Run Stem Decomposition</span>
+                )}
               </button>
               {stemPreviews.length > 0 && (
                 <section className="mt-6 border-t border-slate-800 pt-5">
@@ -794,25 +875,46 @@ export default function StudioDashboard() {
                 <button
                   onClick={() => handleExecute("mix_master")}
                   disabled={executing}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center space-x-1.5 disabled:opacity-50"
                 >
-                  Render Master Audio (.wav)
+                  {executing && activeOperation === "mix_master" ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Mastering ({formatTime(elapsedSec)})...</span>
+                    </>
+                  ) : (
+                    <span>Render Master Audio (.wav)</span>
+                  )}
                 </button>
 
                 <button
                   onClick={() => handleExecute("create_reaper_rpp")}
                   disabled={executing}
-                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 cursor-pointer"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-cyan-600/20 cursor-pointer flex items-center space-x-1.5 disabled:opacity-50"
                 >
-                  Generate REAPER Project (.rpp) with 5 Buses & VSTi
+                  {executing && activeOperation === "create_reaper_rpp" ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Building REAPER Session...</span>
+                    </>
+                  ) : (
+                    <span>Generate REAPER Project (.rpp) with 5 Buses & VSTi</span>
+                  )}
                 </button>
 
                 <button
                   onClick={() => handleExecute("create_ableton")}
                   disabled={executing}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 cursor-pointer"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 cursor-pointer flex items-center space-x-1.5 disabled:opacity-50"
                 >
-                  Generate & Open in Ableton Live (.als)
+                  {executing && activeOperation === "create_ableton" ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Generating ALS & Opening Ableton...</span>
+                    </>
+                  ) : (
+                    <span>Generate & Open in Ableton Live (.als)</span>
+                  )}
                 </button>
               </div>
             </div>
@@ -1119,6 +1221,143 @@ export default function StudioDashboard() {
           </div>
         )}
       </footer>
+
+      {/* ------------------------------------------------------------- */}
+      {/* EXECUTION PROGRESS MODAL / OVERLAY (Real-time Live Monitor)   */}
+      {/* ------------------------------------------------------------- */}
+      {executing && !minimizedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-6 relative overflow-hidden">
+            {/* Top glowing ambient pulse bar */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 via-cyan-500 to-emerald-500 animate-pulse" />
+
+            {/* Header with Title and Minimize */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-violet-950/80 border border-violet-700/50 rounded-xl text-violet-400 shadow-lg shadow-violet-900/30">
+                  <RefreshCw className="w-6 h-6 animate-spin text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>{getOperationTitle(activeOperation)}</span>
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Project: <span className="text-cyan-400 font-semibold">{projectName || "Active Song"}</span> • Mode: <span className="text-emerald-400 font-semibold">{engine === "direct" ? "Direct MCP Python (Instant)" : `Agent CLI (${engine})`}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setMinimizedModal(true)}
+                title="Minimize to banner"
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              >
+                <ChevronDown className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Active Timer & Details Grid */}
+            <div className="grid grid-cols-2 gap-3 bg-slate-950 border border-slate-800/80 rounded-xl p-3 mb-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Elapsed Time</span>
+                <span className="text-xl font-mono font-bold text-cyan-400 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-cyan-400 animate-pulse" />
+                  {formatTime(elapsedSec)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Engine / Hardware</span>
+                <span className="text-xs font-semibold text-slate-200 block truncate">
+                  {activeOperation === "separate_stems" ? "htdemucs_6s (CPU Inference)" : "Python DSP Engine"}
+                </span>
+              </div>
+            </div>
+
+            {/* Explanatory Description Note */}
+            <div className="bg-violet-950/30 border border-violet-800/30 rounded-xl p-3 mb-4 text-xs text-slate-300 space-y-1">
+              <p className="font-semibold text-violet-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                {getOperationDescription(activeOperation)}
+              </p>
+              <p className="text-[11px] text-slate-400">
+                {activeOperation === "separate_stems"
+                  ? "Demucs 6-stem AI separation is running on CPU. Typical processing time is ~4-8 minutes depending on audio length. Audio stems are actively being written to workspace/input_stems/ in real time."
+                  : "Task is executing in background. Output files will be synced automatically."}
+              </p>
+            </div>
+
+            {/* Live Detected Output Stems List */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-xs text-slate-300 font-semibold mb-2">
+                <span>Real-Time Detected Stems</span>
+                <span className="text-[11px] text-emerald-400 font-normal">
+                  {stemPreviews.length} stem{stemPreviews.length === 1 ? "" : "s"} ready
+                </span>
+              </div>
+
+              {stemPreviews.length === 0 ? (
+                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 text-center text-xs text-slate-500">
+                  Waiting for stems to be written to disk...
+                </div>
+              ) : (
+                <div className="max-h-28 overflow-y-auto space-y-1.5 bg-slate-950/70 border border-slate-800 rounded-xl p-2">
+                  {stemPreviews.map((s: any) => (
+                    <div key={s.relativePath} className="flex items-center justify-between text-xs px-2.5 py-1.5 bg-slate-900/80 rounded-lg border border-slate-800/60">
+                      <span className="text-slate-200 font-mono text-[11px]">{s.name}</span>
+                      <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
+                        <Check className="w-3 h-3 text-emerald-400" /> Generated
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Latest Live Console Log */}
+            {consoleLogs.length > 0 && (
+              <div className="bg-slate-950 rounded-xl border border-slate-800/70 px-3 py-2 text-[11px] font-mono text-slate-400 truncate">
+                <span className="text-violet-400 font-bold mr-1">Status:</span>
+                {consoleLogs[0]}
+              </div>
+            )}
+
+            {/* Bottom Actions */}
+            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500">
+              <span>You can minimize this dialog to view other tabs while processing.</span>
+              <button
+                onClick={() => setMinimizedModal(true)}
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer"
+              >
+                Minimize to Banner
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MINIMIZED FLOATING BADGE */}
+      {executing && minimizedModal && (
+        <div
+          onClick={() => setMinimizedModal(false)}
+          className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 bg-slate-900/95 border border-violet-500/60 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md cursor-pointer hover:border-violet-400 transition animate-in slide-in-from-bottom-4"
+        >
+          <div className="p-2.5 bg-violet-950 rounded-xl border border-violet-800/50">
+            <RefreshCw className="w-5 h-5 animate-spin text-violet-400" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-2">
+              <span>{getOperationTitle(activeOperation)}</span>
+              <span className="text-[10px] bg-violet-900/60 text-cyan-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                {formatTime(elapsedSec)}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {stemPreviews.length} stems ready • Click to expand monitor
+            </p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

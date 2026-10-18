@@ -139,12 +139,23 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         stems = params.get("stem_paths", {})
         if isinstance(stems, str):
             stems = json.loads(stems)
+        project_name = params.get("project_name", "")
+        if not stems and project_name:
+            stem_dir = os.path.join(PROJECT_ROOT, "workspace", "input_stems", project_name)
+            if os.path.isdir(stem_dir):
+                for f in os.listdir(stem_dir):
+                    if f.endswith(".wav"):
+                        key = os.path.splitext(f)[0]
+                        stems[key] = os.path.join(stem_dir, f)
+        out_path = params.get("output_master_path")
+        if not out_path and project_name:
+            out_path = os.path.join(PROJECT_ROOT, "workspace", "output_audio", f"{project_name}_master.wav")
         return auto_mix_and_master_stems(
             stem_paths=stems,
             genre_profile=params.get("genre_profile", "metalcore"),
             target_lufs=float(params.get("target_lufs", -9.0)),
             reference_track_path=params.get("reference_track_path"),
-            output_master_path=params.get("output_master_path"),
+            output_master_path=out_path,
             auto_use_detected_vst3=params.get("auto_use_detected_vst3", True),
         )
 
