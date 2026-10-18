@@ -1,0 +1,3 @@
+[submodule "vendor/pyCapCut"]
+	path = vendor/pyCapCut
+	url = https://github.com/GuanYixuan/pyCapCut.git

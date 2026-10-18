@@ -1,0 +1,26 @@
+# Local Python environment and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local web build and dependencies
+web-ui/node_modules/
+web-ui/.next/
+web-ui/tsconfig.tsbuildinfo
+
+# Workspace audio, video, exports, model weights, and user project data
+workspace/*
+!workspace/source_songs/
+workspace/source_songs/*
+!workspace/source_songs/.gitkeep
+*.ckpt
+*.th
+*.onnx
+
+# Local credentials, machine paths, and developer settings
+.env
+.env.*
+!.env.example
+mcp_config.json
+.claude/settings.local.json
