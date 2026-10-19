@@ -28,6 +28,7 @@ import {
   Send,
   Wand2,
   Clock,
+  Upload,
 } from "lucide-react";
 
 type EngineMode = "direct" | "claude" | "antigravity" | "codex";
@@ -73,6 +74,7 @@ export default function StudioDashboard() {
 
   // CapCut Form
   const [capcutDraftName, setCapcutDraftName] = useState("New_Project_MV");
+  const [dawMidiPath, setDawMidiPath] = useState("workspace/output_tabs/Fearless_my_tears.mid");
 
   // Console & Logs
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
@@ -121,6 +123,8 @@ export default function StudioDashboard() {
         return "Generating REAPER Session (.rpp)";
       case "create_ableton":
         return "Generating Ableton Live Set (.als)";
+      case "import_daw_midi":
+        return "Importing Verified MIDI (.mid) from DAW";
       case "transcribe_tabs":
         return "Transcribing Tablature (.gp5) & Visual Sync Map";
       case "assemble_capcut":
@@ -142,6 +146,8 @@ export default function StudioDashboard() {
         return "Building 5-bus multi-track REAPER project with VSTi routing.";
       case "create_ableton":
         return "Constructing Ableton Live Set (.als) and auto-launching DAW.";
+      case "import_daw_midi":
+        return "Solving 4-fret biomechanical tablature from DAW-exported MIDI.";
       case "transcribe_tabs":
         return "Running Viterbi 4-fret solver & exporting Guitar Pro 5 tabs.";
       case "assemble_capcut":
@@ -269,7 +275,7 @@ export default function StudioDashboard() {
           audio_path: audioPath.replace(/^["']|["']$/g, "").trim(),
           model_name: separationModel,
           segment_sec: segmentSec ? Number(segmentSec) : undefined,
-          output_dir: action === "transcribe_tabs" ? "workspace/output_tabs" : `workspace/input_stems/${projectName.trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "")}`,
+          output_dir: (action === "transcribe_tabs" || action === "import_daw_midi") ? "workspace/output_tabs" : `workspace/input_stems/${projectName.trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "")}`,
           genre_profile: genreProfile,
           target_lufs: targetLufs,
           auto_use_detected_vst3: autoVst3,
@@ -1039,6 +1045,44 @@ export default function StudioDashboard() {
         {/* TAB 3: TABLATURE & VISUAL PROMPT EXPLORER */}
         {activeTab === "tabs" && (
           <div className="space-y-6">
+            {/* HYBRID DAW MIDI IMPORT CARD */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40 border border-violet-500/30 rounded-2xl p-4 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-violet-600/20 text-violet-400 border border-violet-500/30 flex-shrink-0">
+                  <Music className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-slate-100 flex items-center gap-2">
+                    <span>Import Verified MIDI (.mid) from DAW</span>
+                    <span className="text-[10px] bg-violet-900/60 text-violet-300 px-2 py-0.5 rounded-full border border-violet-700/50 font-medium">
+                      SD3 Tracker / REAPER / Ableton / RipX
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Import audio-to-MIDI exported from Superior Drummer 3 Tracker, ReaTune, or RipX to solve biomechanical 4-fret guitar tabs with 100% precision.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 w-full lg:w-auto justify-end flex-wrap">
+                <input
+                  type="text"
+                  placeholder="workspace/output_tabs/song.mid"
+                  value={dawMidiPath}
+                  onChange={(e) => setDawMidiPath(e.target.value)}
+                  className="bg-slate-950 border border-slate-700 text-slate-200 placeholder-slate-600 rounded-lg px-2.5 py-1.5 text-xs w-64 focus:ring-1 focus:ring-violet-500 font-mono"
+                  title="Path to .mid file from DAW"
+                />
+                <button
+                  onClick={() => handleExecute("import_daw_midi", { midi_path: dawMidiPath, tuning: tabTuning, musical_key: tabKey, bpm: tabBpm })}
+                  disabled={executing || !dawMidiPath}
+                  className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-violet-600/20 cursor-pointer flex items-center gap-1.5 whitespace-nowrap transition"
+                  title="Run Viterbi 4-fret solver and export GP5 & sync map from DAW MIDI"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Import & Solve Tablature</span>
+                </button>
+              </div>
+            </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
               <div className="flex items-center justify-between mb-4">
                 <div>

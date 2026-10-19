@@ -45,6 +45,7 @@ from servers.daw_studio_mcp.daw_bridge import (
     export_ableton_als_session_manifest,
 )
 from servers.tab_transcriber_mcp.server import transcribe_stems_to_gp5_and_sync_map
+from servers.tab_transcriber_mcp.daw_midi_importer import import_verified_daw_midi
 from servers.capcut_director_mcp.beat_cutter import list_and_classify_footage
 from servers.capcut_director_mcp.server import assemble_capcut_music_video
 
@@ -238,6 +239,42 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
             vocals_stem=vocals_stem,
             other_stem=other_stem,
             extra_instrument_stems=extra_stems,
+            master_audio_path=params.get("master_audio_path", params.get("audio_path")),
+        )
+
+    elif action == "import_daw_midi":
+        project_name = params.get("project_name", "Song")
+        raw_midi = params.get("midi_path", "")
+        if not raw_midi:
+            # Check default workspace output_tabs or input_stems for any .mid file
+            candidate_dirs = [
+                os.path.join(PROJECT_ROOT, "workspace", "output_tabs"),
+                os.path.join(PROJECT_ROOT, "workspace", "input_stems", project_name),
+                os.path.join(PROJECT_ROOT, "workspace"),
+            ]
+            for cd in candidate_dirs:
+                if os.path.isdir(cd):
+                    for fn in os.listdir(cd):
+                        if fn.lower().endswith(".mid") or fn.lower().endswith(".midi"):
+                            raw_midi = os.path.join(cd, fn)
+                            break
+                    if raw_midi:
+                        break
+
+        midi_path = raw_midi if os.path.isabs(raw_midi) else os.path.join(PROJECT_ROOT, raw_midi)
+        tuning_name = params.get("tuning") or params.get("tuning_name") or "Standard E"
+        bpm_val = float(params.get("bpm")) if params.get("bpm") else None
+        key_val = params.get("musical_key") or None
+        raw_out_dir = params.get("output_dir", "workspace/output_tabs")
+        out_dir = raw_out_dir if os.path.isabs(raw_out_dir) else os.path.join(PROJECT_ROOT, raw_out_dir)
+
+        return import_verified_daw_midi(
+            project_name=project_name,
+            midi_path=midi_path,
+            tuning_name=tuning_name,
+            bpm=bpm_val,
+            musical_key=key_val,
+            output_dir=out_dir,
             master_audio_path=params.get("master_audio_path", params.get("audio_path")),
         )
 

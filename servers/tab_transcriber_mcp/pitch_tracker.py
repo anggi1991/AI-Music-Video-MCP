@@ -9,6 +9,14 @@ import os
 from typing import List, Dict, Any, Optional
 import numpy as np
 import librosa
+try:
+    from .pre_cleaner import pre_clean_stem_audio
+except ImportError:
+    try:
+        from pre_cleaner import pre_clean_stem_audio
+    except Exception:
+        pre_clean_stem_audio = lambda y, sr, inst: y
+
 from scipy.signal import butter, sosfilt
 
 
@@ -219,12 +227,129 @@ def track_tonal_pitches(y: np.ndarray, sr: int, instrument: str = "guitar") -> L
     return events
 
 
-def analyze_stem_pitches(stem_path: str, instrument: str) -> List[Dict[str, Any]]:
-    """Load stem audio file and extract pitch/drum events."""
+ONNX_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "nmp.onnx")
+
+
+def track_pitches_onnx(y: np.ndarray, sr: int, instrument: str = "guitar") -> List[Dict[str, Any]]:
+    """Track authentic polyphonic pitches and chords using Spotify Basic Pitch ONNX neural model.
+
+    Runs offline without TensorFlow dependencies on CPU/GPU via onnxruntime.
+    """
+    if not os.path.exists(ONNX_MODEL_PATH):
+        return []
+
+    try:
+        import onnxruntime as ort
+    except ImportError:
+        return []
+
+    try:
+        # Pre-clean audio to remove cymbal/drum bleed
+        if pre_clean_stem_audio:
+            y_clean = pre_clean_stem_audio(y, sr, instrument=instrument)
+        else:
+            y_clean = y
+
+        # Resample to 22050 Hz for basic-pitch
+        if sr != 22050:
+            y_22k = librosa.resample(y_clean, orig_sr=sr, target_sr=22050)
+        else:
+            y_22k = y_clean
+        y_22k = y_22k.astype(np.float32)
+
+        sess = ort.InferenceSession(ONNX_MODEL_PATH, providers=["CPUExecutionProvider"])
+        window_samples = 43844
+        hop_samples = 22050
+        frame_dur = 256.0 / 22050.0
+
+        num_windows = max(1, int(np.ceil((len(y_22k) - window_samples) / hop_samples)) + 1) if len(y_22k) > window_samples else 1
+        total_frames = int(np.ceil(len(y_22k) / 256.0))
+        note_probs = np.zeros((total_frames, 88), dtype=np.float32)
+        weights = np.zeros((total_frames, 1), dtype=np.float32)
+
+        for w_idx in range(num_windows):
+            start_samp = w_idx * hop_samples
+            end_samp = start_samp + window_samples
+            if start_samp >= len(y_22k):
+                break
+            chunk = y_22k[start_samp:end_samp]
+            if len(chunk) < window_samples:
+                chunk = np.pad(chunk, (0, window_samples - len(chunk)))
+
+            inp = chunk.reshape(1, window_samples, 1)
+            res = sess.run(None, {"serving_default_input_2:0": inp})
+            w_notes = res[0][0]
+
+            start_frame = int(round(start_samp / 256.0))
+            end_frame = min(total_frames, start_frame + w_notes.shape[0])
+            n_copy = end_frame - start_frame
+            note_probs[start_frame:end_frame] += w_notes[:n_copy]
+            weights[start_frame:end_frame] += 1.0
+
+        weights[weights == 0] = 1.0
+        note_probs /= weights
+
+        onset_frames = librosa.onset.onset_detect(y=y_22k, sr=22050, hop_length=256, backtrack=True)
+        if len(onset_frames) == 0:
+            onset_frames = np.arange(0, total_frames, max(1, int(0.25 / frame_dur)))
+
+        events = []
+        inst_lower = instrument.lower()
+        threshold = 0.30 if "guitar" in inst_lower else 0.35
+        max_poly = 6 if "guitar" in inst_lower else (2 if "bass" in inst_lower else 4)
+
+        for i, f_start in enumerate(onset_frames):
+            f_end = onset_frames[i + 1] if i + 1 < len(onset_frames) else total_frames
+            if f_start >= total_frames:
+                break
+
+            slice_prob = np.mean(note_probs[f_start:f_end], axis=0) if f_end > f_start else note_probs[f_start]
+            active_bins = np.where(slice_prob >= threshold)[0]
+
+            if len(active_bins) == 0:
+                peak_bin = int(np.argmax(slice_prob))
+                if slice_prob[peak_bin] >= 0.22:
+                    active_bins = [peak_bin]
+                else:
+                    continue
+
+            t_start = float(f_start * frame_dur)
+            t_end = float(min(total_frames * frame_dur, f_end * frame_dur))
+            dur = max(0.08, t_end - t_start)
+            midi_notes = sorted([int(b + 21) for b in active_bins])[:max_poly]
+
+            events.append({
+                "start_time_sec": round(t_start, 3),
+                "end_time_sec": round(t_end, 3),
+                "duration_sec": round(dur, 3),
+                "root_midi": midi_notes[0],
+                "midi_notes": midi_notes,
+                "rms": float(np.max(slice_prob[active_bins])),
+                "db": -12.0,
+            })
+
+        return events
+    except Exception:
+        return []
+
+
+def analyze_stem_pitches(stem_path: str, instrument: str, use_onnx: bool = True) -> List[Dict[str, Any]]:
+    """Load stem audio file and extract pitch/drum events using ONNX neural model with CQT fallback."""
     if not os.path.exists(stem_path):
         return []
     y, sr = librosa.load(stem_path, sr=22050, mono=True)
     if "drum" in instrument.lower():
         return detect_drum_hits(y, sr)
     else:
-        return track_tonal_pitches(y, sr, instrument=instrument.lower())
+        inst_lower = instrument.lower()
+        if use_onnx:
+            onnx_events = track_pitches_onnx(y, sr, instrument=inst_lower)
+            if onnx_events:
+                return onnx_events
+        # Graceful fallback to pre-cleaned CQT
+        if pre_clean_stem_audio:
+            y_clean = pre_clean_stem_audio(y, sr, instrument=inst_lower)
+        else:
+            y_clean = y
+        return track_tonal_pitches(y_clean, sr, instrument=inst_lower)
+

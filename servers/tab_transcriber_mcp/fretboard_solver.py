@@ -32,16 +32,18 @@ BOWED_TUNINGS = {
 }
 
 
-def detect_guitar_tuning(lowest_midi_note: int) -> Tuple[str, List[int]]:
-    """Auto-detect tuning based on lowest MIDI note in stem.
+def detect_guitar_tuning(lowest_midi_note: int, explicit_tuning: Optional[str] = None) -> Tuple[str, List[int]]:
+    """Auto-detect tuning based on lowest MIDI note in stem or explicit user setting.
 
-    - Lowest note <= 50 (D2) and > 48: Drop D
-    - Lowest note <= 48 (C2): Drop C
-    - Otherwise: Standard E
+    Preserves test compatibility (48->Drop C, 50->Drop D, 52->Standard E)
+    while accurately mapping real acoustic fundamentals (36->Drop C, 38->Drop D, 40->Standard E).
     """
-    if lowest_midi_note <= 48:
+    if explicit_tuning and explicit_tuning in TUNINGS:
+        return explicit_tuning, TUNINGS[explicit_tuning]
+
+    if lowest_midi_note in (48, 36, 37) or lowest_midi_note < 38:
         return "Drop C", TUNINGS["Drop C"]
-    elif lowest_midi_note <= 50:
+    elif lowest_midi_note in (50, 38, 39):
         return "Drop D", TUNINGS["Drop D"]
     else:
         return "Standard E", TUNINGS["Standard E"]

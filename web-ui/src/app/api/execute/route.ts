@@ -297,6 +297,12 @@ function generateMasterPrompt(action: string, params: any): string {
       `- Set arrangement timeline clips and project tempo to ${params.bpm || 140.0} BPM.\n` +
       `- Auto-launch Ableton Live 12 to open the generated project session.`
     );
+  } else if (action === "import_daw_midi") {
+    return (
+      `Import verified DAW MIDI file "${params.midi_path || "workspace/output_tabs/song.mid"}" (from SD3 Tracker / REAPER / Ableton / RipX) into project "${params.project_name}".\n` +
+      `- Solve anatomical 4-fret hand-box guitar positions using Viterbi algorithm with tuning "${params.tuning || "Standard E"}".\n` +
+      `- Update .gp5 tablature, .musicxml, and visual_sync_map.json with 100% DAW MIDI accuracy.`
+    );
   } else if (action === "create_reaper_rpp") {
     return (
       `Generate REAPER project (.rpp) with 5 folder buses, flagship VST3 chains, and VSTi tracks for project "${params.project_name}".\n` +

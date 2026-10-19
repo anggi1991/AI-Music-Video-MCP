@@ -54,6 +54,14 @@ except Exception:
     decompose_vocal_stem = None
     decompose_orchestral_stem = None
 
+try:
+    from .daw_midi_importer import import_verified_daw_midi
+except ImportError:
+    try:
+        from daw_midi_importer import import_verified_daw_midi
+    except Exception:
+        import_verified_daw_midi = None
+
 mcp = FastMCP("tab-transcriber-mcp")
 
 
@@ -314,3 +322,31 @@ def transcribe_stems_to_gp5_and_sync_map(
 
 if __name__ == "__main__":
     mcp.run()
+
+
+@mcp.tool()
+def import_daw_midi(
+    project_name: str,
+    midi_path: str,
+    tuning_name: Optional[str] = "Standard E",
+    bpm: Optional[float] = None,
+    musical_key: Optional[str] = None,
+    output_dir: str = "workspace/output_tabs",
+    master_audio_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Import verified polyphonic and multi-track MIDI (.mid) from DAW (SD3 Tracker, REAPER, Ableton, RipX).
+
+    Executes anatomical Viterbi 4-fret solver, applies drop or standard tunings,
+    and updates .gp5, .musicxml, and visual_sync_map.json with 100% DAW MIDI accuracy.
+    """
+    if import_verified_daw_midi is None:
+        raise RuntimeError("daw_midi_importer module is not available.")
+    return import_verified_daw_midi(
+        project_name=project_name,
+        midi_path=midi_path,
+        tuning_name=tuning_name,
+        bpm=bpm,
+        musical_key=musical_key,
+        output_dir=output_dir,
+        master_audio_path=master_audio_path,
+    )

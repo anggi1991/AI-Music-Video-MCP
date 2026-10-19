@@ -15,9 +15,17 @@ import pedalboard as pb
 
 # Default system VST3 search paths for Windows and common platforms
 DEFAULT_VST3_PATHS = [
+    # Windows
     r"C:\Program Files\Common Files\VST3",
     r"C:\Program Files (x86)\Common Files\VST3",
     os.path.expanduser(r"~\AppData\Local\Programs\Common\VST3"),
+    # macOS
+    "/Library/Audio/Plug-Ins/VST3",
+    os.path.expanduser("~/Library/Audio/Plug-Ins/VST3"),
+    # Linux
+    os.path.expanduser("~/.vst3"),
+    "/usr/lib/vst3",
+    "/usr/local/lib/vst3",
 ]
 
 

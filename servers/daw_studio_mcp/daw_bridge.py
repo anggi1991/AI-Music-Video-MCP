@@ -81,6 +81,10 @@ def _format_rpp_fxchain(vst_list: List[Dict[str, Any]]) -> str:
     for item in vst_list:
         p_name = item.get("plugin_name", "VST3 Plugin")
         p_path = item.get("vst3_path", "")
+        if p_name == "ReaTune" or p_path == "reatune.dll":
+            lines.append('      <VST "VST: ReaTune (Cockos)" "reatune.dll" 0 "" 0 ""')
+            lines.append("      >")
+            continue
         if not p_path or not os.path.exists(p_path):
             continue
         file_name = os.path.basename(p_path)
@@ -269,6 +273,28 @@ def generate_reaper_project_rpp(
         fx_chain_cfg = []
         if role and auto_use_detected_vst3:
             fx_chain_cfg = build_flagship_role_chain(role, vst_reg)
+
+        # Audio-to-MIDI & flagship DAW instrument routing
+        if role == "drums" and auto_use_detected_vst3:
+            sd3_path = _find_best_plugin_path(["superior drummer", "ezdrummer"], vst_reg)
+            if sd3_path and os.path.exists(sd3_path):
+                fx_chain_cfg.append({
+                    "plugin_name": "Superior Drummer 3 (SD3 Tracker)",
+                    "vst3_path": sd3_path,
+                })
+        elif role in ("bass", "vocal_lead", "vocals", "guitar_lead"):
+            fx_chain_cfg.append({
+                "plugin_name": "ReaTune",
+                "vst3_path": "reatune.dll",
+            })
+        elif role == "guitar_bus" and auto_use_detected_vst3:
+            neural_path = _find_best_plugin_path(["gojira", "plini", "nolly", "fortin", "cory wong", "abasi", "neural dsp"], vst_reg)
+            if neural_path and os.path.exists(neural_path):
+                fx_chain_cfg.append({
+                    "plugin_name": "Neural DSP Archetype",
+                    "vst3_path": neural_path,
+                })
+
         if is_vsti and role == "vsti_drums":
             fx_chain_cfg = [{
                 "plugin_name": "Superior Drummer 3",
@@ -334,7 +360,7 @@ def generate_reaper_project_rpp(
         guitar_children.append(("Guitar additional", existing_stem("guitar_additional"), "guitar_additional"))
     if guitar_children:
         total_buses_count += 1
-        append_track("GUITAR BUS", is_bus_depth=1)
+        append_track("GUITAR BUS", is_bus_depth=1, role="guitar_bus")
         for name, path, role in guitar_children:
             append_track(name, 0, path, role=role)
         append_track("GUITAR RE-TRACK (Human DI -> Archetype Gojira X)", -1, None, role="guitar_lead", is_rec_arm=True)

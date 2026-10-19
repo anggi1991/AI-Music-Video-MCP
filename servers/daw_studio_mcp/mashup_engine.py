@@ -1,7 +1,7 @@
 """Module for audio analysis, BPM warping, key detection, and crossfaded stem splicing."""
 
 import os
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 import numpy as np
 import soundfile as sf
 import librosa
@@ -60,11 +60,18 @@ def calculate_pitch_shift(base_root_idx: int, donor_root_idx: int) -> int:
     return int(diff)
 
 
-def analyze_audio_metadata(audio_path: str) -> Dict[str, Any]:
+def analyze_audio_metadata(
+    audio_path: str,
+    drum_stem_path: Optional[str] = None,
+    harmonic_stem_paths: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     """Detect exact BPM, Musical Key, duration, integrated LUFS, and transient onset timestamps.
+    Supports drum stem transient priority for BPM and cleaned harmonic stems for musical key.
 
     Args:
         audio_path: Path to the audio file.
+        drum_stem_path: Optional path to isolated drum stem for transient BPM tracking.
+        harmonic_stem_paths: Optional paths to cleaned harmonic stems for musical key detection.
 
     Returns:
         dict: Audio metadata including BPM, key, duration, LUFS, and onsets.
@@ -83,16 +90,47 @@ def analyze_audio_metadata(audio_path: str) -> Dict[str, Any]:
 
     duration_sec = float(len(y_mono) / sr)
 
-    # 1. BPM and beat tracking
-    tempo, beats = librosa.beat.beat_track(y=y_mono, sr=sr)
-    if isinstance(tempo, np.ndarray):
-        bpm = float(tempo[0]) if tempo.size > 0 else 120.0
+    # 1. BPM and beat tracking (Prioritize clean drum transient envelope if available)
+    if drum_stem_path and os.path.exists(drum_stem_path):
+        try:
+            y_d, sr_d = librosa.load(drum_stem_path, sr=None, mono=True)
+            d_tempo, _ = librosa.beat.beat_track(y=y_d, sr=sr_d)
+            if isinstance(d_tempo, np.ndarray):
+                bpm = float(d_tempo[0]) if d_tempo.size > 0 else 120.0
+            else:
+                bpm = float(d_tempo)
+        except Exception:
+            tempo, _ = librosa.beat.beat_track(y=y_mono, sr=sr)
+            bpm = float(tempo[0]) if isinstance(tempo, np.ndarray) and tempo.size > 0 else float(tempo)
     else:
-        bpm = float(tempo)
+        tempo, beats = librosa.beat.beat_track(y=y_mono, sr=sr)
+        if isinstance(tempo, np.ndarray):
+            bpm = float(tempo[0]) if tempo.size > 0 else 120.0
+        else:
+            bpm = float(tempo)
 
-    # 2. Key detection
-    root_note, mode, root_idx = detect_key_krumhansl(y_mono, sr)
-    musical_key = f"{root_note} {mode}"
+    # 2. Key detection (Prioritize cleaned harmonic stems: bass, guitar, piano)
+    if harmonic_stem_paths:
+        try:
+            harm_signals = []
+            for hp in harmonic_stem_paths:
+                if hp and os.path.exists(hp):
+                    yh, _ = librosa.load(hp, sr=sr, mono=True)
+                    harm_signals.append(yh)
+            if harm_signals:
+                min_len = min(len(s) for s in harm_signals)
+                sum_harm = np.sum([s[:min_len] for s in harm_signals], axis=0)
+                root_note, mode, root_idx = detect_key_krumhansl(sum_harm, sr)
+                musical_key = f"{root_note} {mode}"
+            else:
+                root_note, mode, root_idx = detect_key_krumhansl(y_mono, sr)
+                musical_key = f"{root_note} {mode}"
+        except Exception:
+            root_note, mode, root_idx = detect_key_krumhansl(y_mono, sr)
+            musical_key = f"{root_note} {mode}"
+    else:
+        root_note, mode, root_idx = detect_key_krumhansl(y_mono, sr)
+        musical_key = f"{root_note} {mode}"
 
     # 3. Integrated LUFS
     try:

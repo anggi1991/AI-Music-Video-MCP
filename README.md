@@ -1,114 +1,218 @@
 # Universal AI Music & Video Production MCP Suite (`music-video-mcp-suite`)
 
-Suite of 3 Universal Model Context Protocol (MCP) servers built with Python (`FastMCP`) over `stdio` for Claude Code Desktop, Antigravity Desktop, Claude Desktop, and Cursor / OpenAI Codex, accompanied by a **Next.js Web UI Studio Dashboard** with Dual-Dispatcher capabilities.
+[![Tests](https://img.shields.io/badge/tests-53%20passed-brightgreen.svg)](#running-all-unit-tests)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
+[![MCP](https://img.shields.io/badge/MCP-100%25%20Universal%20FastMCP-orange.svg)](https://modelcontextprotocol.io/)
+[![Next.js](https://img.shields.io/badge/Next.js-16%20Turbopack-black.svg)](https://nextjs.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Currently implemented:
-- **Demucs `htdemucs_6s` separation:** vocals, drums, bass, guitar, piano, and other.
-- **Experimental sub-stem masks:** guitar, vocal, and orchestra DSP masks; not validated source separation and disabled by default.
-- **Phase 11 source isolation:** the song dropdown reads only `workspace/source_songs/`; generated outputs are stored per project under `workspace/input_stems/<project_name>/`.
-- **Honest separation metadata and previews:** Demucs output labels, model caveats, measured inference telemetry, structured CUDA OOM errors, and browser playback for generated WAV stems.
-- **Pluggable cascade status:** task-specific cascades remain unavailable until verified weights, licenses, and output-label mappings are configured. Existing heuristic decomposers remain preserved and marked experimental.
-- **Mixing and REAPER project skeletons:** available VST3 plugin paths may be added; no MIDI replacement notes are fabricated.
-- **Automatic tablature and visual sync drafts:** Guitar Pro 5, MusicXML, and timed events, all requiring human review.
-- **CapCut draft tooling and Next.js dashboard:** availability depends on valid footage/assets and the target application's installed plugins.
+A production-grade, modular suite of **3 Universal Model Context Protocol (MCP) servers** written in Python (`FastMCP`) over `stdio`, paired with a modern **Next.js Studio Web UI** featuring dual-mode execution (Direct Python MCP & Agent CLI Dispatcher).
+
+This system bridges the gap between **AI Music Stems (Suno AI / Udio / Demucs)**, **Advanced Stem Decomposed Sub-Layers (Vocals, Guitars, Bowed Strings)**, **Flagship VST3/VSTi Audio Engineering (Ozone, FabFilter, soothe2, Neural DSP, Superior Drummer 3, Kontakt)**, **Biomechanical Multi-Track Tablature Generation (.gp5 / MusicXML)**, and **Automated Beat-Synced Video Timeline Assembly in CapCut Desktop**.
 
 ---
 
-## Directory Structure
+## Key System Capabilities
+
+- **Pretrained Demucs 6-Stem Separation (`htdemucs_6s`):** Discrete isolation for vocals, drums, bass, guitar, piano, and residual other.
+- **Dual-Mode Audio-to-MIDI & Tablature Engine:**
+  - **Mode 1 (Offline Neural ONNX):** Spotify Basic Pitch neural network inference running directly on `onnxruntime` (no TensorFlow conflicts) for high-accuracy polyphonic guitar chord transcription.
+  - **Mode 2 (Hybrid DAW Bridge):** 1-click import of verified `.mid` files exported from **Superior Drummer 3 Tracker**, **REAPER (ReaTune)**, **Ableton Live**, or **Hit'n'Mix RipX DeepAudio**.
+- **VST3 Pre-Cleaning Pipeline:** Pre-cleans audio stems before pitch and BPM tracking using installed flagship VST3 plugins (**FabFilter Pro-Q 4**, **oeksound soothe2**, **iZotope RX 11 Guitar De-noise**) or high-order IIR filters (cutting sub-bass rumble < 75 Hz and cymbal sizzle > 5.5 kHz).
+- **Acoustic Key & Transient BPM Detection:** Prioritizes isolated drum stem transient envelopes for tempo tracking and pre-cleaned harmonic stems for Krumhansl-Schmuckler key profile detection.
+- **Biomechanical Viterbi 4-Fret Fretboard Solver:** Anatomically constrained 4-fret hand-box shortest-path routing, 1-finger barre power chords, and automatic tuning support (Standard E, Drop D, Drop C, Eb Standard, D Standard).
+- **Interactive Songsterr Tablature Viewer:** Built-in AlphaTab visual score renderer in Next.js Studio UI supporting multi-track tab playback, solo/mute, zoom, and live cursor tracking.
+- **Zero-Setup Multitrack DAW Project Generation:**
+  - **REAPER (`.rpp`):** 5 organized folder buses (*VOCAL BUS, GUITAR BUS, BASS & DRUM BUS, ORCHESTRA BUS, VSTi BUS*) with automated routing for **Superior Drummer 3** on drums, **ReaTune** on vocal/bass/lead, and **Neural DSP Archetype** on guitar buses.
+  - **Ableton Live (`.als`):** Native compressed Live 12 XML sets with sample-accurate unwarped audio stem layout.
+- **Automated CapCut Video Timeline Director:** Optical flow transient cutting, micro speed-ramping to match song BPM, and injection of camera shake, zoom punch, and flash keyframes.
+
+---
+
+## Monorepo Directory Structure
 
 ```text
 music-video-mcp-suite/
-├── PRD.md
-├── start_studio_ui.bat             # 1-Click launcher to open Web UI on http://localhost:3000
-├── mcp_config.json                 # Ready-to-use config with Windows absolute paths
-├── requirements.txt                # Python dependencies
-├── pytest.ini                      # Test runner configuration (with VST3 safe faulthandler)
-├── README.md                       # Setup & usage documentation
+├── PRD.md                                # Master Product Requirements Document (Phases 1-13)
+├── start_studio_ui.bat                   # 1-Click launcher to open Web UI on http://localhost:3000
+├── mcp_config.json                       # Universal MCP configuration for Claude, Antigravity, Cursor
+├── requirements.txt                      # Python dependencies (PyTorch CUDA, librosa, pedalboard, etc.)
+├── pytest.ini                            # Pytest configuration
+├── README.md                             # Main documentation
 ├── shared_schemas/
 │   ├── __init__.py
-│   └── sync_map_schema.py          # Flexible Pydantic models for Audio-Tab-Video JSON contract
+│   └── sync_map_schema.py                # Pydantic data contract for dynamic instruments and sync events
 ├── servers/
-│   ├── cli_runner.py               # CLI bridge between Web UI and Python MCP backend
-│   ├── daw_studio_mcp/             # MODULE 1: Audio Mashup, Warping, Mixing & Mastering
-│   │   ├── server.py
-│   │   ├── vst3_manager.py         # Category A-D VST3/VSTi scanner, parameter inspector & role chains
-│   │   ├── stem_separator.py       # htdemucs_6s source separation; never silently substitutes filterbank DSP
-│   │   ├── guitar_decomposer.py    # Hybrid M/S + Salience 3-Way Guitar Decomposition
-│   │   ├── vocal_decomposer.py     # 3-Way Vocal Decomposition with Lip-Sync Readiness Gating
-│   │   ├── orchestra_decomposer.py # Orchestral acoustic detection & selective stem decomposition
-│   │   ├── mashup_engine.py        # BPM Time-Stretch, Key Detection & Pitch-Shift
-│   │   ├── mix_master_engine.py    # Stem EQ/Comp/LUFS Balancing, Reference & Flagship VST3 Mastering
-│   │   └── daw_bridge.py           # REAPER .rpp generator, Ableton manifest & OSC transport bridge
-│   ├── tab_transcriber_mcp/        # MODULE 2: Audio-to-Tab (.gp5) & Visual Coordinate Generator
-│   │   ├── server.py
-│   │   ├── pitch_tracker.py        # Pitch tracking & frequency-band drum onset detection
-│   │   ├── fretboard_solver.py     # Viterbi solver (Guitars, Bass, Violin, Viola, Cello, Vocals)
-│   │   ├── gp5_exporter.py         # Multi-Track GP5 & MusicXML generator (Band, Strings, Vocals)
-│   │   └── visual_prompt_mapper.py # Nano Banana 2.1 & Veo prompts (Bowing, Singers, Guitars)
-│   └── capcut_director_mcp/        # MODULE 3: Automated CapCut Timeline & Beat-Sync Assembler
-│       ├── server.py
-│       ├── draft_manager.py        # Resolves %LOCALAPPDATA% CapCut draft folders
-│       ├── beat_cutter.py          # Micro speed-ramping, transient hard cuts & multi-character shots
-│       └── fx_injector.py          # Breakdown zoom / camera shake / white flash keyframes
-├── web-ui/                         # Next.js Studio Dashboard (App Router, Tailwind, Lucide)
-│   ├── src/
-│   │   └── app/
-│   │       ├── api/
-│   │       │   ├── execute/route.ts   # Dual-Dispatcher (Direct Python MCP / Agent CLI)
-│   │       │   └── workspace/route.ts # Real-time file & sync map inspector
-│   │       ├── page.tsx               # Studio Dashboard with 4 Tabs & Prompt Playground
-│   │       ├── layout.tsx
-│   │       └── globals.css
+│   ├── README.md                         # Architecture and API documentation for MCP servers
+│   ├── cli_runner.py                     # CLI bridge between Web UI and Python MCP backend
+│   ├── workspace_paths.py                # Path sanitization and workspace directory boundaries
+│   ├── daw_studio_mcp/                   # MODULE 1: Stem Separation, Mixing, VST3 Hosting & DAW Bridge
+│   │   ├── server.py                     # FastMCP server definition
+│   │   ├── vst3_manager.py               # Category A-D VST3 scanner, parameter inspector & role chains
+│   │   ├── stem_separator.py             # Pretrained htdemucs_6s source separation
+│   │   ├── guitar_decomposer.py          # 3-way guitar sub-stem analysis (Rhythm, Lead, Additional)
+│   │   ├── vocal_decomposer.py           # 3-way vocal sub-stem analysis & lip-sync readiness gating
+│   │   ├── orchestra_decomposer.py       # Orchestral acoustic detection & selective decomposition
+│   │   ├── mashup_engine.py              # Drum transient BPM tracking & cleaned harmonic key detection
+│   │   ├── mix_master_engine.py          # Stem gain staging, LUFS balancing & VST3 mastering chains
+│   │   └── daw_bridge.py                 # REAPER (.rpp) with SD3/ReaTune & Ableton (.als) set generator
+│   ├── tab_transcriber_mcp/              # MODULE 2: Audio-to-Tab, Neural ONNX & DAW MIDI Importer
+│   │   ├── server.py                     # FastMCP server definition
+│   │   ├── models/
+│   │   │   └── nmp.onnx                  # Spotify Basic Pitch neural network model
+│   │   ├── pre_cleaner.py                # VST3 pre-cleaning (Pro-Q 4, soothe2, RX 11 de-bleed)
+│   │   ├── pitch_tracker.py              # ONNX neural transcription & sub-band drum transient detection
+│   │   ├── fretboard_solver.py           # Viterbi 4-fret hand-box, Drop Tunings & Bowed Strings
+│   │   ├── gp5_exporter.py               # Multi-track Guitar Pro 5 (.gp5) & MusicXML exporter
+│   │   ├── daw_midi_importer.py          # Parser for SD3 Tracker / REAPER / Ableton / RipX MIDI files
+│   │   └── visual_prompt_mapper.py       # Nano Banana 2.1 & Google Veo keyframe prompt generator
+│   └── capcut_director_mcp/              # MODULE 3: Automated CapCut Timeline & Video Assembler
+│       ├── server.py                     # FastMCP server definition
+│       ├── draft_manager.py              # pyCapCut wrapper for draft_content.json timelines
+│       ├── beat_cutter.py                # Micro speed-ramping, transient hard cuts & multi-angle shots
+│       └── fx_injector.py                # Breakdown zoom punch, camera shake & white flash keyframes
+├── web-ui/                               # MODULE 4: Next.js Studio Dashboard (Turbopack, Tailwind)
+│   ├── README.md                         # Web UI architecture and developer guide
 │   ├── package.json
 │   ├── tsconfig.json
-│   └── next.config.mjs
-├── vendor/
-│   └── pyCapCut/                   # Vendored pyCapCut library
-└── workspace/                      # User workspace assets
-    ├── input_stems/
-    ├── output_audio/
-    ├── output_tabs/
-    └── veo_footage/
+│   └── src/app/
+│       ├── page.tsx                      # Single-page DAW Studio Dashboard with 4 workflow tabs
+│       └── api/
+│           ├── execute/route.ts          # Dual-Dispatcher (Direct Python MCP vs Agent CLI)
+│           ├── tabs/file/route.ts        # Binary stream endpoint for Songsterr .gp5 playback
+│           └── workspace/route.ts        # Live workspace filesystem & sync map inspector
+├── tests/                                # Comprehensive Pytest Test Suite (Phases 1-13)
+│   ├── test_phase1_scaffolding.py
+│   ├── test_phase2_daw_studio.py
+│   ├── test_phase3_tab_transcriber.py
+│   ├── test_phase4_capcut_director.py
+│   ├── test_phase5_mcp_config.py
+│   ├── test_phase6_multi_guitar_separation.py
+│   ├── test_phase7_orchestral_instruments.py
+│   ├── test_phase8_vocal_decomposition.py
+│   ├── test_phase9_flagship_vst3_and_daw.py
+│   ├── test_phase10_studio_ui.py
+│   ├── test_phase11_workspace_and_registry.py
+│   ├── test_phase12_ableton_project.py
+│   └── test_phase13_hybrid_onnx_and_daw_midi.py
+└── workspace/                            # Local workspace directory for audio assets
+    ├── source_songs/                     # User source tracks (.wav, .mp3, .flac)
+    ├── input_stems/                      # Separated stems per project (htdemucs_6s)
+    ├── output_audio/                     # Master audio (.wav) and DAW project sessions (.rpp, .als)
+    ├── output_tabs/                      # Exported .gp5, .musicxml, and visual_sync_map.json
+    └── veo_footage/                      # AI-generated video clips (.mp4)
 ```
 
 ---
 
-## Launching the Web UI Studio Dashboard
+## Quick Start: Launching the Studio UI
 
-Double-click `start_studio_ui.bat` in the project root:
+### Method 1: 1-Click Windows Launcher
+Double-click `start_studio_ui.bat` at the repository root:
 ```bat
 start_studio_ui.bat
 ```
+This automatically verifies dependencies, starts the Next.js production/development server on `http://localhost:3000`, and opens your default browser.
 
-Place full-song source files (`.wav`, `.mp3`, or `.flac`) in `workspace/source_songs/`. That directory feeds the source-song dropdown; generated audio, stems, tablature, and video assets stay outside the source catalog.
-This automatically starts the Next.js studio server on `http://localhost:3000` and opens your default browser.
-
-Or manually start the development server:
+### Method 2: Manual Terminal Execution
 ```bash
+# In first terminal (Next.js Web UI):
 cd web-ui
 npm run dev
-```
 
-### Dashboard Features:
-1. **Execution Engine Selector:** Switch seamlessly between:
-   - `⚡ Direct Python MCP Engine (Instant & Deterministic)`
-   - `🤖 Claude Code CLI / Desktop`
-   - `🚀 Antigravity Desktop / Gemini CLI`
-   - `🧠 OpenAI Codex CLI`
-2. **4 Workflow Tabs:**
-   - **Tab 1: 🎚️ Stem Separation & Mashup Splicer:** Demucs six-source separation; optional vocal/guitar/orchestra DSP masks are experimental and disabled by default.
-   - **Tab 2: 🎛️ VST3 Mix, Master & DAW Project:** Plugin discovery, LUFS controls, and REAPER session skeleton generation from existing audio files and installed plugins.
-   - **Tab 3: 🎸 Tablature (.gp5) & Visual Prompt Explorer:** Full-band tab transcription, interactive timeline cards, 1-click copy for Nano Banana 2.1 & Veo prompts, with **Custom Modifiers** support.
-   - **Tab 4: 🎬 Veo Footage Manager & CapCut Auto-Director:** Footage inspection, sync map requirement checklist, and automated CapCut Desktop project assembly.
-3. **Agent Prompt & Custom Override Workspace (Two-Way Synced Drawer):**
-   - Live Studio Terminal log output.
-   - Real-time prompt assembly reflecting form changes with full manual override capabilities and one-click dispatch to AI agents.
+# Source songs:
+Place your full-song audio files (.wav, .mp3, or .flac) inside workspace/source_songs/
+```
 
 ---
 
-## MCP Configuration (`mcp_config.json`)
+## Studio Dashboard Workflows
 
-Copy the configuration below into your Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`), Antigravity Desktop, or Cursor MCP configuration:
+The dashboard provides a unified interface across 4 specialized production tabs:
+
+### Tab 1: Stem Separation & Mashup Splicer
+- **Pretrained Demucs 6-Source Separation:** Isolates `vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, and `other.wav`.
+- **Anti-Bleed Gate:** Adaptive threshold gate eliminating bleed between high-gain guitars and cymbals.
+- **Crossfaded Mashup Splicer:** 15ms cosine crossfade splicing with automatic BPM time-stretching and harmonic pitch-shifting.
+
+### Tab 2: VST3 Mixing, Mastering & DAW Projects
+- **Category A–D VST3 Discovery:** Automatically scans `C:\Program Files\Common Files\VST3` for 57+ flagship plugins:
+  - *Category A (Surgical & Mastering):* FabFilter Pro-Q 4, Pro-MB, Pro-L 2, Saturn 2, iZotope Ozone 12, oeksound soothe2.
+  - *Category B (Vocals & Spatial):* FabFilter Pro-C 3, Pro-DS, Valhalla DSP.
+  - *Category C (Guitars & Bass):* Neural DSP Archetype (Gojira, Plini, Nolly, Cory Wong, Abasi), Parallax X, Darkglass Ultra.
+  - *Category D (Virtual Instruments & Transcribers):* Toontrack Superior Drummer 3, Hit'n'Mix RipX (RipLink), BBC SO / Kontakt.
+- **Master Audio Renderer:** Automated gain staging, EQ de-harshing, reference mastering via Matchering 2.0, and EBU R128 true-peak limiting.
+- **DAW Export Buttons:** 1-click generation and launching of native **REAPER (.rpp)** and **Ableton Live 12 (.als)** sessions with pre-routed buses and FX chains.
+
+### Tab 3: Full-Band Tablature (.gp5) & Visual Prompt Explorer
+- **Hybrid DAW MIDI Importer:** Import verified `.mid` files directly from **Superior Drummer 3 Tracker**, **REAPER ReaTune**, **Ableton**, or **RipX DeepAudio** with 1-click to produce production-accurate tablature.
+- **Offline ONNX Neural Transcription:** Transcribe complex guitar chords using Spotify Basic Pitch neural network on pre-cleaned stems without opening a DAW.
+- **Interactive Songsterr Tab Viewer:** Web-based AlphaTab renderer displaying guitar tablature, standard musical notation, chord diagrams, and real-time playback cursor.
+- **Tuning & Key Selector:** Select Standard E, Drop D, Drop C, Eb Standard, or D Standard with automatic Viterbi fretboard hand-box solving.
+- **Prompt Explorer:** Copy Nano Banana 2.1 keyframe prompts and Google Veo motion prompts per timestamp with custom style modifiers.
+
+### Tab 4: Veo Footage Manager & CapCut Auto-Director
+- **Footage Inspector:** Scan `workspace/veo_footage/` and verify clips against required musical sync states (e.g. guitar downpicking, blast beats, vocal screams).
+- **Automated CapCut Timeline Assembly:** Generates native CapCut Desktop drafts with BPM-aligned transient cuts, optical flow speed-ramping, and breakdown punch/shake effects.
+
+---
+
+## Dual-Mode Audio-to-MIDI Pipeline Architecture
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                        SOURCE AUDIO / STEMS                            │
+│           (workspace/input_stems/<project>/guitar.wav, etc.)           │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                     STEP 1: VST3 PRE-CLEANING                          │
+│     (FabFilter Pro-Q 4 / soothe2 / RX 11 Guitar De-noise / IIR)        │
+│    - Highpass < 75 Hz (eliminate sub-bass rumble & kick bleed)         │
+│    - Lowpass > 5.5 kHz (eliminate cymbal sizzle & hi-hat bleed)        │
+└───────────────────┬────────────────────────────────┬───────────────────┘
+                    │                                │
+                    ▼ (Jalur 1: Offline)             ▼ (Jalur 2: Hybrid DAW Bridge)
+┌──────────────────────────────────────┐  ┌──────────────────────────────┐
+│       ONNX NEURAL TRANSCRIPTION      │  │      EXPORT TO DAW SESSION   │
+│     (Spotify Basic Pitch nmp.onnx)   │  │  - SD3 Tracker on Drum Track │
+│  - 88 MIDI pitch probability matrix  │  │  - ReaTune on Bass/Vocal/Lead│
+│  - Handles polyphonic chords cleanly │  │  - Neural DSP on Guitar Bus  │
+└───────────────────┬──────────────────┘  └──────────────┬───────────────┘
+                    │                                    │
+                    │                                    ▼
+                    │                     ┌──────────────────────────────┐
+                    │                     │    USER EXPORTS VERIFIED     │
+                    │                     │      MIDI (.mid) FROM DAW    │
+                    │                     │ (SD3 / REAPER / Ableton/RipX)│
+                    │                     └──────────────┬───────────────┘
+                    │                                    │
+                    └─────────────────┬──────────────────┘
+                                      │
+                                      ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│            STEP 2: BIOMECHANICAL VITERBI 4-FRET SOLVER                 │
+│  - Ergonomic 4-fret hand-box stretch constraint                        │
+│  - 1-Finger barre power chord detection for Drop tunings               │
+│  - Standard E / Drop D / Drop C / Eb Standard / D Standard tunings     │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│             STEP 3: MULTI-TRACK TABLATURE & SYNC MAP EXPORT            │
+│  - Guitar Pro 5 (.gp5) with individual instrument tracks               │
+│  - MusicXML (.musicxml) score interchange                              │
+│  - visual_sync_map.json with Veo & Nano Banana prompts                 │
+│  - Interactive Songsterr viewer in Next.js Studio UI                   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## MCP Server Configuration (`mcp_config.json`)
+
+To use the 3 MCP servers inside Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`), Antigravity Desktop, Cursor, or Codex, reference the pre-configured `mcp_config.json`:
 
 ```json
 {
@@ -135,52 +239,53 @@ Copy the configuration below into your Claude Desktop (`%APPDATA%\Claude\claude_
 }
 ```
 
+### Available Tools:
+
+#### `daw-studio-mcp`
+- `separate_audio_stems(audio_path, model_name, output_dir, ...)`: Demucs 6-stem separation.
+- `mashup_replace_segment(base_stem, donor_stem, ...)`: Splicing with time-stretch & pitch-shift.
+- `auto_mix_and_master(stems_dir, genre_profile, target_lufs, ...)`: Flagship VST3 mix & master.
+- `generate_reaper_project(project_name, stem_paths, ...)`: Generates `.rpp` with SD3, ReaTune, and Neural DSP.
+- `export_ableton_live_set(project_name, stem_paths, ...)`: Generates native `.als` project for Ableton Live 12.
+
+#### `tab-transcriber-mcp`
+- `transcribe_stems_to_gp5_and_sync_map(project_name, bpm, musical_key, ...)`: Offline ONNX neural transcription, Viterbi 4-fret solver, `.gp5`, `.musicxml`, and `visual_sync_map.json`.
+- `import_daw_midi(project_name, midi_path, tuning_name, bpm, ...)`: Imports verified `.mid` from SD3 Tracker, REAPER, Ableton, or RipX to generate tablature.
+
+#### `capcut-director-mcp`
+- `list_and_classify_footage(footage_dir)`: Scans and tags AI video clips.
+- `assemble_capcut_music_video(project_name, sync_map_path, ...)`: Builds beat-synced timeline in CapCut Desktop.
+
 ---
 
 ## Running All Unit Tests
 
-Run the complete test suite across all 10 phases:
+Run the complete test suite across all 13 phases:
 
 ```bash
 .venv\Scripts\python.exe -m pytest tests/ -v
 ```
-*(39 tests covering Phase 1 through Phase 10)*
 
-### Audio separation and output status
-
-`separate_stems` requires the pretrained `htdemucs_6s` model. It stops without writing stems if the model cannot load; the optional DSP filterbank fallback is experimental and must not be treated as isolated instrument sources. The model's six labels are `drums`, `bass`, `other`, `vocals`, `guitar`, and `piano` (`piano` is not relabeled as `synth`).
-
-The current guitar, vocal, and orchestra sub-decomposers use heuristic masks. They are disabled by default, labeled experimental when explicitly enabled, and excluded from the full pipeline's mastering/transcription inputs. They do not meet production source-separation quality. Automatic tablature and sync events are drafts and require human review.
-
+Expected result:
+```text
+======================= 53 passed, 5 warnings in ~65s =======================
+```
 
 ---
 
-## GPU Acceleration & PyTorch CUDA Setup (NVIDIA RTX)
+## Hardware Acceleration (NVIDIA CUDA Setup)
 
-To leverage NVIDIA GPU acceleration (e.g. RTX 3070 / RTX 40-series) for fast Demucs stem separation (~15-30 seconds instead of ~7-8 minutes on CPU):
+To utilize GPU acceleration on NVIDIA RTX cards (~15-30s for Demucs 6-stem separation instead of ~7-8 minutes on CPU):
 
-### Option A: Online Installation via Pip
-Run inside PowerShell (uses `--default-timeout=1000` to prevent socket timeouts on fluctuating connections):
 ```powershell
 .\.venv\Scripts\pip install --upgrade --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 --default-timeout=1000
 ```
 
-### Option B: Manual Wheel (.whl) Installation (Recommended if Pip Timeouts)
-If direct pip downloads time out due to the large ~2.5 GB wheel size:
-1. Download the official PyTorch CUDA 12.4 wheel for Windows (Python 3.12, x64) via browser or download manager:
-   - **Torch CUDA 12.4**: [torch-2.4.1+cu124-cp312-cp312-win_amd64.whl](https://download.pytorch.org/whl/cu124/torch-2.4.1%2Bcu124-cp312-cp312-win_amd64.whl)
-   - **Torchaudio CUDA 12.4**: [torchaudio-2.4.1+cu124-cp312-cp312-win_amd64.whl](https://download.pytorch.org/whl/cu124/torchaudio-2.4.1%2Bcu124-cp312-cp312-win_amd64.whl)
-2. Install the downloaded wheel file directly into `.venv`:
-   ```powershell
-   .\.venv\Scripts\pip install "C:\path\to\torch-2.4.1+cu124-cp312-cp312-win_amd64.whl"
-   ```
-
-### Verifying GPU Activation
-Verify that PyTorch recognizes your NVIDIA GPU:
+Verify GPU detection:
 ```powershell
-.\.venv\Scripts\python.exe -c "import torch; print('CUDA Available:', torch.cuda.is_available()); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
+.\.venv\Scripts\python.exe -c "import torch; print('CUDA Available:', torch.cuda.is_available()); print('Device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU')"
 ```
-Output should display:
+Output:
 ```text
 CUDA Available: True
 Device: NVIDIA GeForce RTX 3070
@@ -188,41 +293,8 @@ Device: NVIDIA GeForce RTX 3070
 
 ---
 
-## DAW & Ableton Live 12 Integration (Phase 12)
+## Honest Production Quality & Limitations Disclosure
 
-The studio supports generating native **Ableton Live Set (`.als`)** project archives and auto-launching them into Ableton Live:
-- Generates native gzip-compressed Live 12 XML sets with audio tracks mapped directly to separated stems (`vocals.wav`, `drums.wav`, `bass.wav`, `guitar.wav`, `piano.wav`, `other.wav`).
-- Automatically resolves `Ableton Live 12 Suite.exe` from common installation directories or environment paths.
-- Preserves track tempo (BPM) and disables time-warping (`IsWarped = false`) so high-fidelity stems stay in pristine phase alignment.
-- Also supports generating REAPER (`.rpp`) project files and JSON manifests.
-
----
-
-## Separation Backends (3 Options)
-
-From the Web UI **Separation backend** selector, you can choose:
-1. **Demucs HT 6-source estimate (`htdemucs_6s`)**: Pretrained neural network separating audio into 6 clean instrument stems. Highly accurate. Runtime: ~15-30s on RTX 3070 GPU / ~4-8 min on CPU.
-2. **Experimental Heuristic DSP Mask (`experimental_dsp_masks`)**: Fast mathematical STFT filterbank & Mid/Side separation (~2-3s on CPU). Ideal for rapid testing without waiting for GPU inference.
-3. **Cascaded Models (`cascaded_separation`)**: Reserved for multi-stage pipelines; disabled until verified weights are configured.
-
-
----
-
-## Mastering Workflows: "Render Master Audio" vs "DAW Project Session"
-
-The studio offers two complementary mixing and mastering workflows on **Tab 2 (VST3 Mix & DAW Project)**:
-
-### 1. "Render Master Audio (.wav)" — Automated DSP & Reference Mastering
-Choose this when you want an **instant, automated commercial-grade master** without opening a DAW:
-- **Automated Gain Staging & Balancing**: Balances multi-stem gain ratios (vocals, drums, bass, guitars, orchestra) calibrated for your selected Genre Profile.
-- **Acoustic Clean-Up**: Employs high-pass sub-rumble cleanup (below 30–80 Hz) and dynamic notch de-harshing in the 3–4 kHz band.
-- **Spotify Pedalboard & EBU R128 / ITU-R BS.1770-4**: Computes exact integrated loudness via `pyloudnorm` and applies true-peak brickwall limiting at `-0.5 dBTP` to hit your exact target (e.g. `-9.0 LUFS` for Metal/Rock or `-14.0 LUFS` for Streaming).
-- **Matchering 2.0**: Transfers spectral frequency curves and dynamic density from a reference master track.
-- **Output**: Produces a ready-to-release `.wav` master file in `workspace/output_audio/master.wav`.
-
-### 2. "Generate REAPER Project (.rpp)" & "Ableton Live (.als)" — Manual DAW Engineering
-Choose this when you want **full human control in your favorite DAW**:
-- **Zero-Setup Multitrack**: Instantly lays out all separated audio stems across their full duration (e.g. 4+ minutes) into organized folder buses (*VOCAL BUS, GUITAR BUS, BASS & DRUM BUS, ORCHESTRA BUS*).
-- **Flagship VST3 FX Chains**: Slots industry-standard plugin chains on buses and master tracks (*FabFilter Pro-Q, Ozone Maximizer, Pro-L 2, Archetype Gojira X*).
-- **Re-Tracking & MIDI**: Includes armed guitar re-track channels and VSTi MIDI channels (*Superior Drummer 3, BBC Symphony Orchestra*).
-- **Auto-Launch**: Automatically resolves your DAW executable and launches the project immediately.
+1. **Source Separation:** Pretrained `htdemucs_6s` is genuine neural source separation. Experimental sub-stem routines (e.g. 3-way guitar or vocal decomposition) use mathematical STFT/Mid-Side masks and are labeled experimental; they must not be presented as isolated performers.
+2. **Audio-to-MIDI Transcription:** Pitch and onset tracking via ONNX Basic Pitch provides an automated draft. Performance-level pitch accuracy and complex polyphonic voicings should always be verified or imported via the Hybrid DAW Bridge (**Superior Drummer 3 Tracker** for drums, **ReaTune** for solo instruments, or **RipX DeepAudio** for multi-part audio).
+3. **DAW Automation:** REAPER and Ableton files are constructed from verified physical stem paths; no placeholder audio or phantom notes are invented.
