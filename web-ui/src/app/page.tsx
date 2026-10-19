@@ -1,5 +1,7 @@
 "use client";
 
+import SongsterrTabViewer from "@/components/SongsterrTabViewer";
+
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Play,
@@ -66,6 +68,7 @@ export default function StudioDashboard() {
   const [workspace, setWorkspace] = useState<any>(null);
   const [stemPreviews, setStemPreviews] = useState<any[]>([]);
   const [syncMapFilter, setSyncMapFilter] = useState("All");
+  const [tabSubView, setTabSubView] = useState<"songsterr" | "sync_map">("songsterr");
   const [customModifiers, setCustomModifiers] = useState<Record<number, string>>({});
 
   // CapCut Form
@@ -1084,8 +1087,55 @@ export default function StudioDashboard() {
                 </div>
               </div>
 
-              {/* Interactive Sync Map Viewer */}
-              {workspace?.sync_map ? (
+              {/* View Mode Toggle: Interactive Songsterr Score vs AI Video Sync Map */}
+              {workspace?.sync_map && (
+                <div className="flex items-center justify-between mb-4 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTabSubView("songsterr")}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                        tabSubView === "songsterr"
+                          ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      <Music className="w-4 h-4" />
+                      <span>Interactive Songsterr Score (Not Angka & Not Balok)</span>
+                    </button>
+                    <button
+                      onClick={() => setTabSubView("sync_map")}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
+                        tabSubView === "sync_map"
+                          ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/30"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      <Layers className="w-4 h-4" />
+                      <span>AI Visual Sync Map & Motion Prompts ({workspace.sync_map.events?.length || 0} Events)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* View 1: Interactive Songsterr Visual Tablature & Staff Score */}
+              {tabSubView === "songsterr" && workspace?.sync_map ? (
+                <SongsterrTabViewer
+                  projectName={projectName || "Fearless_my_tears"}
+                  gp5FileName={
+                    workspace?.output_tabs?.find((f: any) => f.name.toLowerCase().endsWith(".gp5"))?.name ||
+                    `${projectName}.gp5`
+                  }
+                  musicXmlFileName={
+                    workspace?.output_tabs?.find((f: any) => f.name.toLowerCase().endsWith(".musicxml"))?.name ||
+                    `${projectName}.musicxml`
+                  }
+                  bpm={workspace.sync_map.bpm || 140}
+                  musicalKey={workspace.sync_map.musical_key || "C Minor"}
+                />
+              ) : null}
+
+              {/* View 2: Interactive Sync Map Timeline Viewer */}
+              {tabSubView === "sync_map" && workspace?.sync_map ? (
                 <div>
                   <div className="flex items-center justify-between p-4 bg-slate-950 rounded-xl border border-slate-800 mb-4">
                     <div className="flex gap-6 text-xs">
