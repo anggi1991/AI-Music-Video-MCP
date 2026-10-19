@@ -307,43 +307,70 @@ def export_gp5_and_musicxml(
                     # Keep a quarter-note grid so the GP5 timeline remains
                     # bounded to the source duration; onset spacing is
                     # quantized to the nearest quarter note.
+                    used_strings = set()
                     if inst_type in ("guitar", "bass", "bowed"):
                         for ev in beat_events:
                             str_nums = ev.get("string_numbers", [len(track.strings)])
                             frets = ev.get("fret_positions", [0])
                             is_pm = ev.get("playing_state") == "palm_mute_chug"
                             for s_num, fret_val in zip(str_nums, frets):
-                                if 1 <= s_num <= len(track.strings):
+                                s_int = int(s_num)
+                                if 1 <= s_int <= len(track.strings) and s_int not in used_strings:
+                                    used_strings.add(s_int)
                                     note = gp.Note(beat)
                                     note.value = max(0, min(24, int(fret_val)))
-                                    note.string = int(s_num)
+                                    note.string = s_int
+                                    note.type = gp.NoteType.normal
                                     if is_pm:
                                         note.effect.palmMute = True
                                     beat.notes.append(note)
 
                     elif inst_type == "drums":
                         for ev in beat_events:
-                            for m_note in ev.get("midi_notes", [])[:1]:
+                            m_notes = ev.get("midi_notes", [])
+                            if not m_notes and ev.get("drum_components"):
+                                COMPONENT_MIDI = {"kick": 36, "snare": 38, "hihat": 42, "cymbal": 49, "crash": 49, "china": 52}
+                                m_notes = [COMPONENT_MIDI.get(c, 38) for c in ev["drum_components"]]
+                            if not m_notes:
+                                m_notes = [38]
+                            for m_note in m_notes[:1]:
                                 note = gp.Note(beat)
                                 note.value = int(m_note)
                                 note.string = 1
+                                note.type = gp.NoteType.normal
                                 beat.notes.append(note)
 
                     elif inst_type in ("synth", "vocal", "orchestral"):
                         for ev in beat_events:
                             midi_notes = ev.get("midi_notes") or ([ev["root_midi"]] if "root_midi" in ev else [])
-                            for i, m_note in enumerate(midi_notes[:4]):
-                                note = gp.Note(beat)
-                                note.value = max(0, min(24, (int(m_note) - 60) % 24))
-                                note.string = min(len(track.strings), i + 1)
-                                beat.notes.append(note)
+                            if not midi_notes:
+                                midi_notes = [60]
+                            for idx_note, m_note in enumerate(midi_notes[:4]):
+                                s_int = min(len(track.strings), idx_note + 1)
+                                if s_int not in used_strings:
+                                    used_strings.add(s_int)
+                                    note = gp.Note(beat)
+                                    note.value = max(0, min(24, (int(m_note) - 60) % 24))
+                                    note.string = s_int
+                                    note.type = gp.NoteType.normal
+                                    beat.notes.append(note)
+
+                    if beat.notes:
+                        beat.status = gp.BeatStatus.normal
+                    else:
+                        beat.status = gp.BeatStatus.rest
+                        note = gp.Note(beat)
+                        note.value = 0
+                        note.string = 1
+                        note.type = gp.NoteType.rest
+                        beat.notes.append(note)
                 else:
+                    beat.status = gp.BeatStatus.rest
                     note = gp.Note(beat)
                     note.value = 0
                     note.string = 1
                     note.type = gp.NoteType.rest
                     beat.notes.append(note)
-
                 voice.beats.append(beat)
 
             track.measures.append(measure)
@@ -374,6 +401,17 @@ def export_gp5_and_musicxml(
         quarter_sec = 60.0 / bpm
         for ev in events:
             midi_notes = ev.get("midi_notes") or ([ev["root_midi"]] if "root_midi" in ev else [])
+            if not midi_notes:
+                str_nums = ev.get("string_numbers", [])
+                frets = ev.get("fret_positions", [])
+                if str_nums and frets and track.strings:
+                    calc_midi = []
+                    for s_num, fret_val in zip(str_nums, frets):
+                        s_idx = int(s_num) - 1
+                        if 0 <= s_idx < len(track.strings):
+                            open_val = track.strings[s_idx].value
+                            calc_midi.append(open_val + int(fret_val))
+                    midi_notes = calc_midi
             if not midi_notes:
                 continue
             ql_raw = max(0.25, min(4.0, ev.get("duration_sec", 0.5) / (60.0 / bpm)))

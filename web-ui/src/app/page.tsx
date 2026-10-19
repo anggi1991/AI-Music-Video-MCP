@@ -454,11 +454,10 @@ export default function StudioDashboard() {
       <nav className="bg-slate-900 border-b border-slate-800 px-6 py-2 flex items-center space-x-2">
         <button
           onClick={() => setActiveTab("separation")}
-          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${
-            activeTab === "separation"
+          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "separation"
               ? "bg-violet-600/20 text-violet-300 border border-violet-500/40"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-          }`}
+            }`}
         >
           <Scissors className="w-4 h-4 text-violet-400" />
           <span>1. Stem Separation & Mashup</span>
@@ -466,11 +465,10 @@ export default function StudioDashboard() {
 
         <button
           onClick={() => setActiveTab("mixing")}
-          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${
-            activeTab === "mixing"
+          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "mixing"
               ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/40"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-          }`}
+            }`}
         >
           <Sliders className="w-4 h-4 text-cyan-400" />
           <span>2. VST3 Mix & DAW Project</span>
@@ -478,11 +476,10 @@ export default function StudioDashboard() {
 
         <button
           onClick={() => setActiveTab("tabs")}
-          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${
-            activeTab === "tabs"
+          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "tabs"
               ? "bg-emerald-600/20 text-emerald-300 border border-emerald-500/40"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-          }`}
+            }`}
         >
           <Music className="w-4 h-4 text-emerald-400" />
           <span>3. Tablature (.GP5) & Visual Prompts</span>
@@ -490,11 +487,10 @@ export default function StudioDashboard() {
 
         <button
           onClick={() => setActiveTab("video")}
-          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${
-            activeTab === "video"
+          className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "video"
               ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/40"
               : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-          }`}
+            }`}
         >
           <Video className="w-4 h-4 text-indigo-400" />
           <span>4. Veo Footage & CapCut Director</span>
@@ -1093,22 +1089,20 @@ export default function StudioDashboard() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setTabSubView("songsterr")}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-                        tabSubView === "songsterr"
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${tabSubView === "songsterr"
                           ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30"
                           : "text-slate-400 hover:text-slate-200"
-                      }`}
+                        }`}
                     >
                       <Music className="w-4 h-4" />
-                      <span>Interactive Songsterr Score (Not Angka & Not Balok)</span>
+                      <span>Interactive Songsterr Sheet Music (Numbered & Standard Notation)</span>
                     </button>
                     <button
                       onClick={() => setTabSubView("sync_map")}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${
-                        tabSubView === "sync_map"
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${tabSubView === "sync_map"
                           ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/30"
                           : "text-slate-400 hover:text-slate-200"
-                      }`}
+                        }`}
                     >
                       <Layers className="w-4 h-4" />
                       <span>AI Visual Sync Map & Motion Prompts ({workspace.sync_map.events?.length || 0} Events)</span>
@@ -1472,8 +1466,8 @@ export default function StudioDashboard() {
               <p className="text-[11px] text-slate-400">
                 {activeOperation === "separate_stems"
                   ? (workspace?.hardware?.cuda_available
-                      ? `Demucs 6-stem AI separation is running on ${workspace.hardware.device_name} GPU. Typical processing time is ~15–30 seconds. Audio stems are actively being written to workspace/input_stems/ in real time.`
-                      : "Demucs 6-stem AI separation is running on CPU. Typical processing time is ~4-8 minutes depending on audio length. Audio stems are actively being written to workspace/input_stems/ in real time.")
+                    ? `Demucs 6-stem AI separation is running on ${workspace.hardware.device_name} GPU. Typical processing time is ~15–30 seconds. Audio stems are actively being written to workspace/input_stems/ in real time.`
+                    : "Demucs 6-stem AI separation is running on CPU. Typical processing time is ~4-8 minutes depending on audio length. Audio stems are actively being written to workspace/input_stems/ in real time.")
                   : "Task is executing in background. Output files will be synced automatically."}
               </p>
             </div>
@@ -1680,7 +1674,7 @@ export default function StudioDashboard() {
         </div>
       )}
 
-            {/* MINIMIZED FLOATING BADGE */}
+      {/* MINIMIZED FLOATING BADGE */}
       {executing && minimizedModal && (
         <div
           onClick={() => setMinimizedModal(false)}
