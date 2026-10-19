@@ -292,6 +292,22 @@ def export_gp5_and_musicxml(
             measure = gp.Measure(track, m_header)
             voice = measure.voices[0]
 
+            # Check if this measure contains any events across its 16 slots
+            has_events = any(
+                (m_idx * 16 + slot_i) in events_by_slot and events_by_slot[m_idx * 16 + slot_i]
+                for slot_i in range(16)
+            )
+
+            if not has_events:
+                # Clean whole rest for empty measure: no notes, completely silent, standard notation
+                beat = gp.Beat(voice)
+                beat.duration.value = 1
+                beat.status = gp.BeatStatus.rest
+                # DO NOT append dummy note! beat.notes remains empty
+                voice.beats.append(beat)
+                track.measures.append(measure)
+                continue
+
             for slot_i in range(16):
                 beat = gp.Beat(voice)
                 beat.duration.value = 16
@@ -384,18 +400,10 @@ def export_gp5_and_musicxml(
                         beat.status = gp.BeatStatus.normal
                     else:
                         beat.status = gp.BeatStatus.rest
-                        note = gp.Note(beat)
-                        note.value = 0
-                        note.string = 1
-                        note.type = gp.NoteType.rest
-                        beat.notes.append(note)
+                        # DO NOT add dummy note! beat.notes remains empty
                 else:
                     beat.status = gp.BeatStatus.rest
-                    note = gp.Note(beat)
-                    note.value = 0
-                    note.string = 1
-                    note.type = gp.NoteType.rest
-                    beat.notes.append(note)
+                    # DO NOT add dummy note! beat.notes remains empty
                 voice.beats.append(beat)
 
             track.measures.append(measure)
