@@ -263,7 +263,7 @@ export default function StudioDashboard() {
           audio_path: audioPath.replace(/^["']|["']$/g, "").trim(),
           model_name: separationModel,
           segment_sec: segmentSec ? Number(segmentSec) : undefined,
-          output_dir: `workspace/input_stems/${projectName.trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "")}`,
+          output_dir: action === "transcribe_tabs" ? "workspace/output_tabs" : `workspace/input_stems/${projectName.trim().replace(/[^\p{L}\p{N}_-]+/gu, "_").replace(/^_+|_+$/g, "")}`,
           genre_profile: genreProfile,
           target_lufs: targetLufs,
           auto_use_detected_vst3: autoVst3,
@@ -1048,13 +1048,40 @@ export default function StudioDashboard() {
                     Anatomically accurate tabs (Guitars, Bass, Drums, Violin, Cello, Vocals) with prompt coordinates
                   </p>
                 </div>
-                <button
-                  onClick={() => handleExecute("transcribe_tabs")}
-                  disabled={executing}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer"
-                >
-                  Transcribe Stems to .GP5 & Sync Map
-                </button>
+                <div className="flex items-center gap-2">
+                  {workspace?.output_tabs?.length > 0 && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await fetch("/api/execute", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              mode: "direct_mcp",
+                              action: "reveal_in_explorer",
+                              params: { file_path: "workspace/output_tabs/visual_sync_map.json" },
+                            }),
+                          });
+                        } catch {
+                          // ignore
+                        }
+                      }}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                      title="Open output_tabs in Windows Explorer"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Open Tabs Folder</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleExecute("transcribe_tabs")}
+                    disabled={executing}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Music className="w-3.5 h-3.5" />
+                    <span>Transcribe Stems to .GP5 & Sync Map</span>
+                  </button>
+                </div>
               </div>
 
               {/* Interactive Sync Map Viewer */}

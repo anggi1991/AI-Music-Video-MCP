@@ -163,21 +163,75 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         extra_stems = params.get("extra_instrument_stems", {})
         if isinstance(extra_stems, str):
             extra_stems = json.loads(extra_stems)
+        project_name = params.get("project_name", "Song")
+        stem_dir = os.path.join(PROJECT_ROOT, "workspace", "input_stems", project_name)
+
+        guitar_stem = params.get("guitar_stem")
+        bass_stem = params.get("bass_stem", "")
+        drum_stem = params.get("drum_stem", "")
+        synth_stem = params.get("synth_stem", "")
+        vocals_stem = params.get("vocals_stem")
+        guitar_rhythm_stem = params.get("guitar_rhythm_stem")
+        guitar_lead_stem = params.get("guitar_lead_stem")
+        guitar_additional_stem = params.get("guitar_additional_stem")
+        vocal_lead_stem = params.get("vocal_lead_stem")
+        vocal_co_lead_stem = params.get("vocal_co_lead_stem")
+        vocal_backing_stem = params.get("vocal_backing_stem")
+        other_stem = params.get("other_stem")
+
+        # Auto-discover stems from workspace/input_stems/{project_name} if not provided
+        if os.path.isdir(stem_dir):
+            if not guitar_stem and os.path.exists(os.path.join(stem_dir, "guitar.wav")):
+                guitar_stem = os.path.join(stem_dir, "guitar.wav")
+            if not guitar_rhythm_stem and os.path.exists(os.path.join(stem_dir, "guitar_rhythm.wav")):
+                guitar_rhythm_stem = os.path.join(stem_dir, "guitar_rhythm.wav")
+            if not guitar_lead_stem and os.path.exists(os.path.join(stem_dir, "guitar_lead.wav")):
+                guitar_lead_stem = os.path.join(stem_dir, "guitar_lead.wav")
+            if not guitar_additional_stem and os.path.exists(os.path.join(stem_dir, "guitar_additional.wav")):
+                guitar_additional_stem = os.path.join(stem_dir, "guitar_additional.wav")
+
+            if not bass_stem and os.path.exists(os.path.join(stem_dir, "bass.wav")):
+                bass_stem = os.path.join(stem_dir, "bass.wav")
+            if not drum_stem and os.path.exists(os.path.join(stem_dir, "drums.wav")):
+                drum_stem = os.path.join(stem_dir, "drums.wav")
+
+            if not vocals_stem and os.path.exists(os.path.join(stem_dir, "vocals.wav")):
+                vocals_stem = os.path.join(stem_dir, "vocals.wav")
+            if not vocal_lead_stem and os.path.exists(os.path.join(stem_dir, "vocal_lead.wav")):
+                vocal_lead_stem = os.path.join(stem_dir, "vocal_lead.wav")
+            if not vocal_co_lead_stem and os.path.exists(os.path.join(stem_dir, "vocal_co_lead.wav")):
+                vocal_co_lead_stem = os.path.join(stem_dir, "vocal_co_lead.wav")
+            if not vocal_backing_stem and os.path.exists(os.path.join(stem_dir, "vocal_backing.wav")):
+                vocal_backing_stem = os.path.join(stem_dir, "vocal_backing.wav")
+
+            if not other_stem and os.path.exists(os.path.join(stem_dir, "other.wav")):
+                other_stem = os.path.join(stem_dir, "other.wav")
+            if not synth_stem and os.path.exists(os.path.join(stem_dir, "piano.wav")):
+                synth_stem = os.path.join(stem_dir, "piano.wav")
+
+        raw_out_dir = params.get("output_dir")
+        if not raw_out_dir or "input_stems" in raw_out_dir:
+            out_dir = os.path.join(PROJECT_ROOT, "workspace", "output_tabs")
+        else:
+            out_dir = raw_out_dir if os.path.isabs(raw_out_dir) else os.path.join(PROJECT_ROOT, raw_out_dir)
+
         return transcribe_stems_to_gp5_and_sync_map(
-            project_name=params.get("project_name", "Song"),
+            project_name=project_name,
             bpm=float(params.get("bpm", 140.0)),
             musical_key=params.get("musical_key", "C Minor"),
-            guitar_stem=params.get("guitar_stem"),
-            bass_stem=params.get("bass_stem", ""),
-            drum_stem=params.get("drum_stem", ""),
-            synth_stem=params.get("synth_stem", ""),
-            output_dir=params.get("output_dir", os.path.join(PROJECT_ROOT, "workspace", "output_tabs")),
-            guitar_rhythm_stem=params.get("guitar_rhythm_stem"),
-            guitar_lead_stem=params.get("guitar_lead_stem"),
-            guitar_additional_stem=params.get("guitar_additional_stem"),
-            vocal_lead_stem=params.get("vocal_lead_stem"),
-            vocal_co_lead_stem=params.get("vocal_co_lead_stem"),
-            vocal_backing_stem=params.get("vocal_backing_stem"),
+            guitar_stem=guitar_stem,
+            bass_stem=bass_stem,
+            drum_stem=drum_stem,
+            synth_stem=synth_stem,
+            output_dir=out_dir,
+            guitar_rhythm_stem=guitar_rhythm_stem,
+            guitar_lead_stem=guitar_lead_stem,
+            guitar_additional_stem=guitar_additional_stem,
+            vocal_lead_stem=vocal_lead_stem,
+            vocal_co_lead_stem=vocal_co_lead_stem,
+            vocal_backing_stem=vocal_backing_stem,
+            vocals_stem=vocals_stem,
+            other_stem=other_stem,
             extra_instrument_stems=extra_stems,
             master_audio_path=params.get("master_audio_path", params.get("audio_path")),
         )

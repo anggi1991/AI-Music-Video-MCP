@@ -182,7 +182,8 @@ def analyze_stem_pitches(stem_path: str, instrument: str) -> List[Dict[str, Any]
     """Load stem audio file and extract pitch/drum events."""
     if not os.path.exists(stem_path):
         return []
-    y, sr = librosa.load(stem_path, sr=None, mono=True)
+    # Optimize to 22050 Hz for ultra-fast, robust pitch tracking without loss of fundamental notes
+    y, sr = librosa.load(stem_path, sr=22050, mono=True)
     if "drum" in instrument.lower():
         return detect_drum_hits(y, sr)
     else:

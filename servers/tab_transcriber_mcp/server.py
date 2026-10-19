@@ -111,15 +111,25 @@ def transcribe_stems_to_gp5_and_sync_map(
 
     has_multi_guitar = bool(guitar_rhythm_stem or guitar_lead_stem or guitar_additional_stem)
 
-    # 4. Track pitches from core stems
-    raw_bass = analyze_stem_pitches(bass_stem, "bass") if bass_stem and os.path.exists(bass_stem) else []
-    raw_drums = analyze_stem_pitches(drum_stem, "drums") if drum_stem and os.path.exists(drum_stem) else []
-    raw_synth = analyze_stem_pitches(synth_stem, "synth") if synth_stem and os.path.exists(synth_stem) else []
+    # 4. Track pitches from core stems with in-memory memoization
+    stem_analysis_cache: Dict[str, List[Dict[str, Any]]] = {}
+
+    def get_or_analyze(path: Optional[str], inst_type: str) -> List[Dict[str, Any]]:
+        if not path or not os.path.exists(path):
+            return []
+        ckey = f"{path}::{inst_type}"
+        if ckey not in stem_analysis_cache:
+            stem_analysis_cache[ckey] = analyze_stem_pitches(path, inst_type)
+        return stem_analysis_cache[ckey]
+
+    raw_bass = get_or_analyze(bass_stem, "bass")
+    raw_drums = get_or_analyze(drum_stem, "drums")
+    raw_synth = get_or_analyze(synth_stem, "synth")
 
     # 5. Guitar Tuning Detection
     ref_stem = guitar_rhythm_stem or guitar_stem or guitar_lead_stem
     if ref_stem and os.path.exists(ref_stem):
-        raw_ref = analyze_stem_pitches(ref_stem, "guitar")
+        raw_ref = get_or_analyze(ref_stem, "guitar")
         lowest_note = min([ev.get("root_midi", 48) for ev in raw_ref], default=48)
     else:
         lowest_note = 48
@@ -131,7 +141,7 @@ def transcribe_stems_to_gp5_and_sync_map(
     def solve_and_classify_fretted(stem_path: Optional[str], inst_label: str):
         if not stem_path or not os.path.exists(stem_path):
             return []
-        raw = analyze_stem_pitches(stem_path, "guitar")
+        raw = get_or_analyze(stem_path, "guitar")
         solved = viterbi_fretboard_solver(raw, open_strings, tuning_name=tuning_name)
         classified = []
         for ev in solved:

@@ -50,6 +50,22 @@ export async function GET() {
       } catch {
         // ignore
       }
+    } else if (fs.existsSync(inputStemsDir)) {
+      for (const entry of fs.readdirSync(inputStemsDir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          const fallbackPath = path.join(inputStemsDir, entry.name, "visual_sync_map.json");
+          if (fs.existsSync(fallbackPath)) {
+            try {
+              syncMap = JSON.parse(fs.readFileSync(fallbackPath, "utf-8"));
+              fs.mkdirSync(outputTabsDir, { recursive: true });
+              fs.copyFileSync(fallbackPath, syncMapPath);
+              break;
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
     }
 
     const audioCandidates: { name: string; path: string; relativePath: string }[] = [];
