@@ -32,10 +32,10 @@ def apply_anti_bleed_gate(audio_stereo: np.ndarray, sr: int, stem_name: str) -> 
     if "vocal" in stem:
         board.append(pb.HighpassFilter(cutoff_frequency_hz=85.0))
         board.append(pb.LowpassFilter(cutoff_frequency_hz=14000.0))
-        board.append(pb.NoiseGate(threshold_db=-45.0, ratio=4.0, attack_ms=5.0, release_ms=100.0))
+        board.append(pb.NoiseGate(threshold_db=-55.0, ratio=1.5, attack_ms=10.0, release_ms=250.0))
     elif "drum" in stem:
         board.append(pb.HighpassFilter(cutoff_frequency_hz=28.0))
-        board.append(pb.NoiseGate(threshold_db=-42.0, ratio=3.0, attack_ms=2.0, release_ms=80.0))
+        board.append(pb.NoiseGate(threshold_db=-55.0, ratio=1.5, attack_ms=10.0, release_ms=250.0))
     elif "bass" in stem:
         board.append(pb.HighpassFilter(cutoff_frequency_hz=30.0))
         board.append(pb.LowpassFilter(cutoff_frequency_hz=5500.0))
@@ -43,10 +43,10 @@ def apply_anti_bleed_gate(audio_stereo: np.ndarray, sr: int, stem_name: str) -> 
     elif "guitar" in stem:
         board.append(pb.HighpassFilter(cutoff_frequency_hz=75.0))
         board.append(pb.LowpassFilter(cutoff_frequency_hz=10000.0))
-        board.append(pb.NoiseGate(threshold_db=-45.0, ratio=4.0, attack_ms=5.0, release_ms=100.0))
+        board.append(pb.NoiseGate(threshold_db=-55.0, ratio=1.5, attack_ms=10.0, release_ms=250.0))
     elif "synth" in stem or "piano" in stem:
         board.append(pb.HighpassFilter(cutoff_frequency_hz=60.0))
-        board.append(pb.NoiseGate(threshold_db=-48.0, ratio=3.0, attack_ms=5.0, release_ms=150.0))
+        board.append(pb.NoiseGate(threshold_db=-55.0, ratio=1.5, attack_ms=10.0, release_ms=250.0))
     else:
         board.append(pb.NoiseGate(threshold_db=-48.0, ratio=2.5, attack_ms=10.0, release_ms=150.0))
 
@@ -166,6 +166,7 @@ def separate_audio_6stems(
     segment_sec: Optional[float] = None,
     auto_polish_stems: bool = False,
     enable_vst3: bool = True,
+    polish_mode: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Separate full mix audio into 6 stems (vocals, drums, bass, guitar, synth, other)
 
@@ -398,8 +399,17 @@ def separate_audio_6stems(
             "One or more experimental heuristic sub-stems were written. They are not source-isolated and must not be used as production stems."
         )
 
-    # 4. Optional Auto-Polish Stems (Phase 14: Dynamic VST3 / Native DSP Fallback)
-    if auto_polish_stems:
+    # 4. Optional Auto-Polish Stems (Phase 14.1: Safe Calibrated Polish with 3 Modes)
+    effective_polish_mode = polish_mode
+    if not effective_polish_mode:
+        if isinstance(auto_polish_stems, str):
+            effective_polish_mode = auto_polish_stems
+        elif auto_polish_stems:
+            effective_polish_mode = "subtle_vst3"
+        else:
+            effective_polish_mode = None
+
+    if effective_polish_mode and effective_polish_mode != "pure_ai" or auto_polish_stems:
         try:
             from servers.daw_studio_mcp.stem_polisher import polish_stems_batch
         except ImportError:
@@ -409,7 +419,13 @@ def separate_audio_6stems(
                 polish_stems_batch = None
 
         if polish_stems_batch:
-            polish_res = polish_stems_batch(output_paths, output_dir=output_dir, enable_vst3=enable_vst3)
+            chosen_mode = effective_polish_mode or "subtle_vst3"
+            polish_res = polish_stems_batch(
+                output_paths,
+                output_dir=output_dir,
+                enable_vst3=enable_vst3,
+                polish_mode=chosen_mode,
+            )
             result["polish_mode"] = polish_res.get("polish_mode", "native_dsp_fallback")
             result["applied_chains"] = polish_res.get("applied_chains", {})
             result["stems"] = polish_res.get("polished_stems", output_paths)

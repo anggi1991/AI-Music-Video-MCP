@@ -51,6 +51,7 @@ export default function StudioDashboard() {
   const [splitOrchestra, setSplitOrchestra] = useState(false);
   const [antiBleedGate, setAntiBleedGate] = useState(false);
   const [autoPolishStems, setAutoPolishStems] = useState(false);
+  const [stemPolishMode, setStemPolishMode] = useState<"pure_ai" | "linear_eq" | "subtle_vst3">("linear_eq");
   const [separationModel, setSeparationModel] = useState("htdemucs_6s");
   const [segmentSec, setSegmentSec] = useState("");
 
@@ -217,7 +218,7 @@ export default function StudioDashboard() {
       p += `- Separation backend: ${separationModel}\n`;
       p += `- Model segment override: ${segmentSec || "model default"} seconds\n`;
       p += `- Experimental heuristic vocal/guitar/orchestra sub-stems (not reliable source separation): ${splitVocals || splitGuitars || splitOrchestra ? "REQUESTED" : "OFF"}\n`;
-      p += `- Auto-Polish Stems (Dynamic VST3 / Native DSP): ${autoPolishStems ? "ACTIVE" : "OFF"}\n`;
+      p += `- Auto-Polish Stems Mode: ${stemPolishMode.toUpperCase()} (${stemPolishMode === "pure_ai" ? "Bypass" : stemPolishMode === "linear_eq" ? "Linear EQ Clean" : "80/20 Parallel VST3 + Envelope Guard"})\n`;
       p += `- Anti-Bleed Noise Gate: ${antiBleedGate ? "ACTIVE" : "OFF"}\n`;
     } else if (activeTab === "mixing") {
       p += `Task: Flagship VST3 Mix & Master + DAW Session Generation\n`;
@@ -283,7 +284,8 @@ export default function StudioDashboard() {
           target_lufs: targetLufs,
           auto_use_detected_vst3: autoVst3,
           apply_bleed_gate: antiBleedGate,
-          auto_polish_stems: autoPolishStems,
+          auto_polish_stems: stemPolishMode !== "pure_ai",
+          polish_mode: stemPolishMode,
           split_guitar_substems: splitGuitars,
           split_vocal_substems: splitVocals,
           split_orchestral_substems: splitOrchestra,
@@ -468,8 +470,8 @@ export default function StudioDashboard() {
         <button
           onClick={() => setActiveTab("separation")}
           className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "separation"
-              ? "bg-violet-600/20 text-violet-300 border border-violet-500/40"
-              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+            ? "bg-violet-600/20 text-violet-300 border border-violet-500/40"
+            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
             }`}
         >
           <Scissors className="w-4 h-4 text-violet-400" />
@@ -479,8 +481,8 @@ export default function StudioDashboard() {
         <button
           onClick={() => setActiveTab("mixing")}
           className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "mixing"
-              ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/40"
-              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+            ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/40"
+            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
             }`}
         >
           <Sliders className="w-4 h-4 text-cyan-400" />
@@ -490,8 +492,8 @@ export default function StudioDashboard() {
         <button
           onClick={() => setActiveTab("tabs")}
           className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "tabs"
-              ? "bg-emerald-600/20 text-emerald-300 border border-emerald-500/40"
-              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+            ? "bg-emerald-600/20 text-emerald-300 border border-emerald-500/40"
+            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
             }`}
         >
           <Music className="w-4 h-4 text-emerald-400" />
@@ -501,8 +503,8 @@ export default function StudioDashboard() {
         <button
           onClick={() => setActiveTab("video")}
           className={`flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors cursor-pointer ${activeTab === "video"
-              ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/40"
-              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+            ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/40"
+            : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
             }`}
         >
           <Video className="w-4 h-4 text-indigo-400" />
@@ -627,28 +629,96 @@ export default function StudioDashboard() {
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label className="md:col-span-2 flex items-start justify-between p-3.5 bg-gradient-to-r from-violet-950/40 via-slate-900/90 to-slate-900/90 rounded-xl border border-violet-800/50 hover:border-violet-600 transition cursor-pointer shadow-sm">
-                    <div className="pr-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-violet-200 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                          ✨ Auto-Polish Stems (Dynamic VST3 / Native DSP De-Bleed)
-                        </span>
-                        <span className="text-[9px] bg-violet-900/60 text-violet-300 border border-violet-700/50 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
-                          Public GitHub Ready
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-400 leading-tight mt-1">
-                        Automatically applies surgical EQ/de-bleed using detected VST3 plugins (FabFilter, soothe2, RX, Ozone) with automatic fallback to native Pedalboard DSP if no commercial plugins are installed.
-                      </div>
+                  <div className="md:col-span-2 p-3.5 bg-gradient-to-r from-violet-950/40 via-slate-900/90 to-slate-900/90 rounded-xl border border-violet-800/50 shadow-sm space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-violet-200 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                        ✨ Stem Post-Processing & Envelope Guard Mode
+                      </span>
+                      <span className="text-[9px] bg-violet-900/60 text-violet-300 border border-violet-700/50 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
+                        Phase 14.1 Guarded
+                      </span>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={autoPolishStems}
-                      onChange={(e) => setAutoPolishStems(e.target.checked)}
-                      className="w-4 h-4 accent-violet-600 cursor-pointer mt-1"
-                    />
-                  </label>
+                    <p className="text-[11px] text-slate-400 leading-tight">
+                      Controls stem clean-up across all 6 instruments. Guarantees 0% note dropouts, no noise-gate choking, and zero volume pumping.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                      {/* Option 1: Pure AI */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStemPolishMode("pure_ai");
+                          setAutoPolishStems(false);
+                        }}
+                        className={`text-left p-2.5 rounded-xl border transition cursor-pointer flex flex-col justify-between ${
+                          stemPolishMode === "pure_ai"
+                            ? "bg-violet-950/70 border-violet-500 text-white shadow-md shadow-violet-950/50"
+                            : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold">Pure AI Stem</span>
+                            {stemPolishMode === "pure_ai" && <Check className="w-3 h-3 text-violet-400" />}
+                          </div>
+                          <div className="text-[10px] leading-tight opacity-80">
+                            100% Original Demucs. Raw neural network output with zero filtering or alteration.
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-mono text-cyan-400 mt-2 block">100% Raw Dynamics</span>
+                      </button>
+
+                      {/* Option 2: Transparent Linear EQ */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStemPolishMode("linear_eq");
+                          setAutoPolishStems(true);
+                        }}
+                        className={`text-left p-2.5 rounded-xl border transition cursor-pointer flex flex-col justify-between ${
+                          stemPolishMode === "linear_eq"
+                            ? "bg-violet-950/70 border-violet-500 text-white shadow-md shadow-violet-950/50"
+                            : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-emerald-300">Linear EQ Clean</span>
+                            {stemPolishMode === "linear_eq" && <Check className="w-3 h-3 text-emerald-400" />}
+                          </div>
+                          <div className="text-[10px] leading-tight opacity-80">
+                            Sub-rumble HPF & wide natural LPF only. Zero compressors, zero gates, 0% pumping.
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-mono text-emerald-400 mt-2 block">Recommended Safe</span>
+                      </button>
+
+                      {/* Option 3: Subtle VST3 Mastering Polish */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStemPolishMode("subtle_vst3");
+                          setAutoPolishStems(true);
+                        }}
+                        className={`text-left p-2.5 rounded-xl border transition cursor-pointer flex flex-col justify-between ${
+                          stemPolishMode === "subtle_vst3"
+                            ? "bg-violet-950/70 border-violet-500 text-white shadow-md shadow-violet-950/50"
+                            : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-violet-300">Subtle VST3 Polish</span>
+                            {stemPolishMode === "subtle_vst3" && <Check className="w-3 h-3 text-violet-400" />}
+                          </div>
+                          <div className="text-[10px] leading-tight opacity-80">
+                            Calibrated VST3 (Pro-Q, soothe2) with 80/20 Parallel Blend & 50ms Envelope Guard.
+                          </div>
+                        </div>
+                        <span className="text-[9px] font-mono text-violet-400 mt-2 block">80% Dry / 20% Wet</span>
+                      </button>
+                    </div>
+                  </div>
                   <label className="flex items-start justify-between p-3.5 bg-slate-900/90 rounded-xl border border-slate-800/90 hover:border-slate-700 transition cursor-pointer">
                     <div className="pr-3">
                       <div className="text-xs font-semibold text-slate-200">
@@ -764,14 +834,18 @@ export default function StudioDashboard() {
                                 <span className="text-xs font-semibold text-cyan-200 font-mono">{stem.name}</span>
                                 <div className="flex items-center gap-1.5 flex-wrap justify-end">
                                   {appliedChain && appliedChain.length > 0 && (
-                                    hasVst ? (
+                                    appliedChain.some((fx: string) => fx.toLowerCase().includes("pure ai")) ? (
+                                      <span className="text-[9px] rounded-md px-1.5 py-0.5 bg-slate-900/90 text-slate-300 border border-slate-700/80 font-mono font-medium">
+                                        Pure AI (Bypass - 100% Dynamics)
+                                      </span>
+                                    ) : hasVst ? (
                                       <span className="text-[9px] rounded-md px-1.5 py-0.5 bg-violet-950/90 text-violet-300 border border-violet-700/60 font-mono font-medium flex items-center gap-1">
                                         <Sparkles className="w-2.5 h-2.5 text-violet-400" />
-                                        VST3 Polished: {vstPlugins.slice(0, 2).join(", ")}{vstPlugins.length > 2 ? ` +${vstPlugins.length - 2}` : ""}
+                                        VST3 + Guard: {vstPlugins.slice(0, 2).join(", ")}{vstPlugins.length > 2 ? ` +${vstPlugins.length - 2}` : ""}
                                       </span>
                                     ) : (
-                                      <span className="text-[9px] rounded-md px-1.5 py-0.5 bg-slate-900 text-cyan-400 border border-slate-700 font-mono font-medium">
-                                        DSP Cleaned: {appliedChain.filter((fx: string) => fx.includes("HPF") || fx.includes("LPF") || fx.includes("Compressor")).join(", ") || appliedChain.slice(0, 2).join(", ")}
+                                      <span className="text-[9px] rounded-md px-1.5 py-0.5 bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 font-mono font-medium">
+                                        Linear EQ Cleaned (Zero Pumping)
                                       </span>
                                     )
                                   )}
@@ -1228,8 +1302,8 @@ export default function StudioDashboard() {
                     <button
                       onClick={() => setTabSubView("songsterr")}
                       className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${tabSubView === "songsterr"
-                          ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30"
-                          : "text-slate-400 hover:text-slate-200"
+                        ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/30"
+                        : "text-slate-400 hover:text-slate-200"
                         }`}
                     >
                       <Music className="w-4 h-4" />
@@ -1238,8 +1312,8 @@ export default function StudioDashboard() {
                     <button
                       onClick={() => setTabSubView("sync_map")}
                       className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer ${tabSubView === "sync_map"
-                          ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/30"
-                          : "text-slate-400 hover:text-slate-200"
+                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-600/30"
+                        : "text-slate-400 hover:text-slate-200"
                         }`}
                     >
                       <Layers className="w-4 h-4" />

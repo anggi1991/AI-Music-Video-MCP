@@ -91,6 +91,13 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
                 },
                 "model_metadata": get_model_metadata("cascaded_separation"),
             }
+        polish_mode = params.get("polish_mode")
+        auto_polish = bool(params.get("auto_polish_stems", False))
+        if polish_mode:
+            effective_polish = polish_mode
+        else:
+            effective_polish = "subtle_vst3" if auto_polish else None
+
         return separate_audio_6stems(
             audio_path=audio_path,
             output_dir=output_dir,
@@ -101,7 +108,8 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
             split_orchestral_substems=params.get("split_orchestral_substems", False),
             allow_dsp_fallback=params.get("allow_dsp_fallback", False),
             segment_sec=params.get("segment_sec"),
-            auto_polish_stems=bool(params.get("auto_polish_stems", False)),
+            auto_polish_stems=auto_polish,
+            polish_mode=effective_polish,
         )
 
     elif action == "polish_stems":
@@ -113,7 +121,8 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         if output_dir and not os.path.isabs(output_dir):
             output_dir = os.path.join(PROJECT_ROOT, output_dir)
         enable_vst3 = bool(params.get("enable_vst3", True))
-        return polish_stems_batch(stems, output_dir=output_dir, enable_vst3=enable_vst3)
+        polish_mode = params.get("polish_mode", "subtle_vst3")
+        return polish_stems_batch(stems, output_dir=output_dir, enable_vst3=enable_vst3, polish_mode=polish_mode)
 
     elif action == "decompose_guitar":
         return decompose_guitar_stem(
