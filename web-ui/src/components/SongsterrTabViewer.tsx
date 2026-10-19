@@ -1,22 +1,20 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   Play,
   Pause,
   Square,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
   Volume2,
+  VolumeX,
   Music,
   Download,
-  FolderOpen,
-  Sliders,
-  Maximize2,
-  Check,
   RefreshCw,
   Sparkles,
+  Layers,
+  Radio,
 } from "lucide-react";
 
 interface SongsterrTabViewerProps {
@@ -50,15 +48,37 @@ export default function SongsterrTabViewer({
   const [tracks, setTracks] = useState<any[]>([]);
   const [selectedTrackIndex, setSelectedTrackIndex] = useState<number>(0);
   const [staveProfile, setStaveProfile] = useState<"default" | "tab" | "score">("default");
-  const [layoutMode, setLayoutMode] = useState<"horizontal" | "page">("page");
+  const [layoutMode, setLayoutMode] = useState<"horizontal" | "page">("horizontal");
   const [zoom, setZoom] = useState<number>(1.0);
   const [currentTime, setCurrentTime] = useState<string>("0:00");
   const [totalTime, setTotalTime] = useState<string>("0:00");
+  const [soloActiveTrack, setSoloActiveTrack] = useState<boolean>(true);
 
   const tabApiUrl = `/api/tabs/file?file=workspace/output_tabs/${encodeURIComponent(gp5FileName)}`;
   const musicXmlApiUrl = `/api/tabs/file?file=workspace/output_tabs/${encodeURIComponent(musicXmlFileName)}`;
 
-  // Load alphaTab script dynamically from reliable CDN
+  // Apply track soloing helper
+  const applyTrackSoloing = useCallback((targetTrackIndex: number, isSolo: boolean) => {
+    if (!apiRef.current || !apiRef.current.score) return;
+    try {
+      const allTracks = apiRef.current.score.tracks || [];
+      if (allTracks.length === 0) return;
+
+      if (isSolo) {
+        const target = allTracks.find((t: any) => t.index === targetTrackIndex) || allTracks[0];
+        // Un-solo all first, then solo the target
+        apiRef.current.changeTrackSolo(allTracks, false);
+        apiRef.current.changeTrackSolo([target], true);
+      } else {
+        // Un-solo all tracks -> full band audio mix
+        apiRef.current.changeTrackSolo(allTracks, false);
+      }
+    } catch (e) {
+      console.warn("Could not apply track solo state:", e);
+    }
+  }, []);
+
+  // Load alphaTab script dynamically
   useEffect(() => {
     let isMounted = true;
 
@@ -86,7 +106,7 @@ export default function SongsterrTabViewer({
       script.onerror = () => {
         if (isMounted) {
           setLoading(false);
-          setLoadError("Failed to load alphaTab interactive engine. Please check your internet connection.");
+          setLoadError("Failed to load alphaTab interactive engine. Please check your network connection.");
         }
       };
       document.body.appendChild(script);
@@ -97,7 +117,11 @@ export default function SongsterrTabViewer({
 
       try {
         if (apiRef.current) {
-          apiRef.current.destroy();
+          try {
+            apiRef.current.destroy();
+          } catch {
+            // ignore
+          }
           apiRef.current = null;
         }
 
@@ -111,11 +135,21 @@ export default function SongsterrTabViewer({
             staveProfile: staveProfile,
             layoutMode: layoutMode,
             scale: zoom,
+            resources: {
+              mainGlyphColor: "#f8fafc", // White/silver for notes and fret numbers
+              secondaryGlyphColor: "#94a3b8", // Slate for stave lines
+              scoreInfoColor: "#38bdf8", // Sky blue for header text
+            },
           },
           player: {
             enablePlayer: true,
-            soundFont: "https://cdn.jsdelivr.net/npm/@coderline/alphatab@1.3.0/dist/soundfont/sonivox.sf2",
+            // Use locally hosted Sonivox SoundFont with zero latency
+            soundFont: "/soundfont/sonivox.sf2",
             scrollElement: scrollContainerRef.current,
+            scrollMode: 1, // Continuous scrolling tracking active beat
+            scrollOffsetX: 160,
+            enableCursor: true,
+            enableElementHighlighting: true,
           },
         };
 
@@ -125,9 +159,14 @@ export default function SongsterrTabViewer({
         api.scoreLoaded.on((score: any) => {
           if (!isMounted) return;
           setLoading(false);
-          setTracks(score.tracks || []);
-          if (score.tracks && score.tracks.length > 0) {
-            setSelectedTrackIndex(score.tracks[0].index);
+          const scoreTracks = score.tracks || [];
+          setTracks(scoreTracks);
+          if (scoreTracks.length > 0) {
+            setSelectedTrackIndex(scoreTracks[0].index);
+            // Default: solo the primary track so instrument timbre is clear
+            if (soloActiveTrack) {
+              api.changeTrackSolo([scoreTracks[0]], true);
+            }
           }
         });
 
@@ -143,6 +182,21 @@ export default function SongsterrTabViewer({
           const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
           setCurrentTime(fmt(curSec));
           setTotalTime(fmt(endSec));
+
+          // Auto-scroll fallback for Songsterr Horizontal View
+          if (scrollContainerRef.current && layoutMode === "horizontal") {
+            const container = scrollContainerRef.current;
+            const cursorBeat = container.querySelector(".at-cursor-beat") as HTMLElement;
+            if (cursorBeat) {
+              const targetLeft = cursorBeat.offsetLeft - container.clientWidth / 3;
+              if (Math.abs(container.scrollLeft - targetLeft) > 20) {
+                container.scrollTo({
+                  left: Math.max(0, targetLeft),
+                  behavior: "smooth",
+                });
+              }
+            }
+          }
         });
 
         api.error.on((err: any) => {
@@ -170,17 +224,25 @@ export default function SongsterrTabViewer({
         apiRef.current = null;
       }
     };
-  }, [tabApiUrl]);
+  }, [tabApiUrl, layoutMode]);
 
-  // Update Track
+  // Update Track (View + Solo Synthesizer)
   const handleSelectTrack = (trackIndex: number) => {
     setSelectedTrackIndex(trackIndex);
     if (apiRef.current && apiRef.current.score) {
       const selected = apiRef.current.score.tracks.find((t: any) => t.index === trackIndex);
       if (selected) {
         apiRef.current.renderTracks([selected]);
+        applyTrackSoloing(trackIndex, soloActiveTrack);
       }
     }
+  };
+
+  // Toggle Solo Instrument vs Full Band Mix
+  const handleToggleSolo = () => {
+    const nextSolo = !soloActiveTrack;
+    setSoloActiveTrack(nextSolo);
+    applyTrackSoloing(selectedTrackIndex, nextSolo);
   };
 
   // Update Stave Profile (Not Balok + Fret Angka vs Fret Saja vs Balok Saja)
@@ -193,7 +255,7 @@ export default function SongsterrTabViewer({
     }
   };
 
-  // Update Layout Mode (Horizontal endless scroll vs Page)
+  // Update Layout Mode (Songsterr Scroll vs Page View)
   const handleChangeLayout = (mode: "horizontal" | "page") => {
     setLayoutMode(mode);
     if (apiRef.current) {
@@ -227,11 +289,51 @@ export default function SongsterrTabViewer({
       apiRef.current.stop();
       apiRef.current.tickPosition = 0;
       setIsPlaying(false);
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+      }
     }
   };
 
   return (
     <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col mb-6">
+      {/* AlphaTab Cursor & Highlight Styling (Songsterr Modern Aesthetic) */}
+      <style jsx global>{`
+        /* Active measure bar block highlight (green glow) */
+        .at-cursor-bar {
+          background: rgba(16, 185, 129, 0.22) !important;
+          border-radius: 6px !important;
+          box-shadow: inset 0 0 0 1.5px rgba(16, 185, 129, 0.55) !important;
+          z-index: 1 !important;
+        }
+
+        /* Active playhead beat cursor line (cyan laser) */
+        .at-cursor-beat {
+          background: #38bdf8 !important;
+          width: 3.5px !important;
+          box-shadow: 0 0 14px rgba(56, 189, 248, 0.95), 0 0 3px #ffffff !important;
+          border-radius: 2px !important;
+          z-index: 25 !important;
+        }
+
+        /* Note symbol active playback glow */
+        .at-highlight * {
+          fill: #38bdf8 !important;
+          stroke: #38bdf8 !important;
+        }
+
+        /* Beat selection highlight */
+        .at-selection div {
+          background: rgba(56, 189, 248, 0.18) !important;
+          border-radius: 4px !important;
+        }
+
+        /* Hide default background canvas artifacts */
+        .alphatab-container svg {
+          background: transparent !important;
+        }
+      `}</style>
+
       {/* Top Songsterr-Style Header Bar */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border-b border-slate-800/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -278,17 +380,17 @@ export default function SongsterrTabViewer({
         </div>
       </div>
 
-      {/* Secondary Controls Bar: Tracks, Playback, View Options */}
+      {/* Control Bar: Instrument Tracks, Stave Layout, Solo Switch */}
       <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-        {/* Track Selector Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mr-1">Instrument:</span>
+        {/* Track Selector Pills */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-slate-400 font-semibold text-[11px] uppercase tracking-wider mr-1">Instrument:</span>
           {tracks.length > 0 ? (
             tracks.map((track) => (
               <button
                 key={track.index}
                 onClick={() => handleSelectTrack(track.index)}
-                className={`px-3 py-1 rounded-lg font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer flex items-center gap-1.5 ${
                   selectedTrackIndex === track.index
                     ? "bg-violet-600 text-white shadow-md shadow-violet-600/30"
                     : "bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60"
@@ -300,6 +402,20 @@ export default function SongsterrTabViewer({
           ) : (
             <span className="text-slate-500 italic text-[11px]">Loading tracks...</span>
           )}
+
+          {/* Solo / Full Band Audio Switch */}
+          <button
+            onClick={handleToggleSolo}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ml-2 border ${
+              soloActiveTrack
+                ? "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/20"
+                : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200"
+            }`}
+            title="When active, the synthesizer solos ONLY the selected instrument so you hear its true timbre clearly without clash"
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>{soloActiveTrack ? "Solo Active Track" : "Full Band Mix"}</span>
+          </button>
         </div>
 
         {/* View Mode Switches (Not Balok + Fret Angka) */}
@@ -335,25 +451,25 @@ export default function SongsterrTabViewer({
             </button>
           </div>
 
-          {/* Layout Mode (Horizontal vs Page) */}
+          {/* Layout Mode (Horizontal endless scroll vs Page) */}
           <div className="flex items-center bg-slate-950 rounded-lg border border-slate-800 p-0.5">
             <button
-              onClick={() => handleChangeLayout("page")}
-              className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
-                layoutMode === "page" ? "bg-emerald-600 text-white font-bold" : "text-slate-400 hover:text-white"
-              }`}
-              title="Page Layout (Halaman Lembar Musik)"
-            >
-              Page View
-            </button>
-            <button
               onClick={() => handleChangeLayout("horizontal")}
-              className={`px-2 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
+              className={`px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
                 layoutMode === "horizontal" ? "bg-emerald-600 text-white font-bold" : "text-slate-400 hover:text-white"
               }`}
-              title="Songsterr Horizontal Track Scrolling"
+              title="Songsterr Continuous Horizontal Track Scrolling (View follows playhead cursor automatically)"
             >
               Songsterr Scroll
+            </button>
+            <button
+              onClick={() => handleChangeLayout("page")}
+              className={`px-2.5 py-1 rounded text-[11px] font-medium transition cursor-pointer ${
+                layoutMode === "page" ? "bg-emerald-600 text-white font-bold" : "text-slate-400 hover:text-white"
+              }`}
+              title="Page Layout (Halaman Lembar Musik Tradisional)"
+            >
+              Page View
             </button>
           </div>
 
@@ -381,22 +497,26 @@ export default function SongsterrTabViewer({
       {/* Main Tablature Display Area (Songsterr Canvas) */}
       <div
         ref={scrollContainerRef}
-        className="relative bg-[#121316] p-6 min-h-[500px] max-h-[680px] overflow-auto flex justify-center"
+        className={`relative bg-[#121316] p-6 min-h-[500px] max-h-[680px] ${
+          layoutMode === "horizontal"
+            ? "block overflow-x-auto overflow-y-hidden"
+            : "flex justify-center overflow-y-auto overflow-x-hidden"
+        }`}
       >
         {loading && (
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-20">
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-30">
             <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin" />
             <p className="text-sm font-semibold text-slate-200">
               Rendering Songsterr Tablature & Standard Notation...
             </p>
             <p className="text-xs text-slate-400">
-              Parsing 6-string fret positions, palm mutes, and measure bars from {gp5FileName}.
+              Loading 6-string fret positions, drum kits, and measure bars from {gp5FileName}.
             </p>
           </div>
         )}
 
         {loadError && (
-          <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center z-20">
+          <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center p-6 text-center z-30">
             <p className="text-red-400 font-semibold mb-2">{loadError}</p>
             <button
               onClick={() => window.location.reload()}
@@ -407,14 +527,12 @@ export default function SongsterrTabViewer({
           </div>
         )}
 
-        {/* AlphaTab Target Element with Dark Inversion Filter for High-Contrast Studio Look */}
+        {/* AlphaTab Target Element with Native Dark Theme Styling */}
         <div
           ref={containerRef}
-          className="w-full max-w-5xl alphatab-container rounded-xl text-slate-100"
-          style={{
-            // High-contrast dark styling for alphaTab's crisp vector rendering
-            filter: "invert(92%) hue-rotate(180deg) brightness(1.05) contrast(1.1)",
-          }}
+          className={`alphatab-container rounded-xl text-slate-100 ${
+            layoutMode === "horizontal" ? "w-max min-w-full" : "w-full max-w-5xl"
+          }`}
         />
       </div>
 
@@ -446,7 +564,7 @@ export default function SongsterrTabViewer({
         <div className="flex items-center gap-3 text-[11px] text-slate-400">
           <span className="flex items-center gap-1.5 text-cyan-400 font-medium">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Interactive Real-Time Cursor Tracking</span>
+            <span>Real-Time Playhead Tracking (Active Bar Highlight & Auto-Follow)</span>
           </span>
           <span>•</span>
           <span>Double-click any measure to jump playback</span>

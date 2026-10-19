@@ -172,6 +172,7 @@ def export_gp5_and_musicxml(
         ch = gp.MidiChannel()
         ch.channel = 9
         ch.effectChannel = 9
+        ch.instrument = 0
         t.channel = ch
         return t
 
@@ -326,19 +327,39 @@ def export_gp5_and_musicxml(
                                     beat.notes.append(note)
 
                     elif inst_type == "drums":
+                        COMPONENT_MAP = {
+                            "kick": (36, 6),
+                            "bass_drum": (36, 6),
+                            "snare": (38, 3),
+                            "hihat": (42, 1),
+                            "hi_hat": (42, 1),
+                            "cymbal": (49, 1),
+                            "crash": (49, 1),
+                            "china": (52, 1),
+                            "china_cymbal": (52, 1),
+                            "tom": (45, 4),
+                        }
                         for ev in beat_events:
+                            drum_items = []
                             m_notes = ev.get("midi_notes", [])
-                            if not m_notes and ev.get("drum_components"):
-                                COMPONENT_MIDI = {"kick": 36, "snare": 38, "hihat": 42, "cymbal": 49, "crash": 49, "china": 52}
-                                m_notes = [COMPONENT_MIDI.get(c, 38) for c in ev["drum_components"]]
-                            if not m_notes:
-                                m_notes = [38]
-                            for m_note in m_notes[:1]:
-                                note = gp.Note(beat)
-                                note.value = int(m_note)
-                                note.string = 1
-                                note.type = gp.NoteType.normal
-                                beat.notes.append(note)
+                            if m_notes:
+                                for mn in m_notes:
+                                    s_val = 6 if mn in (35, 36) else (3 if mn in (38, 40) else (1 if mn in (42, 44, 46, 49, 51, 52) else 4))
+                                    drum_items.append((int(mn), s_val))
+                            elif ev.get("drum_components"):
+                                for c in ev["drum_components"]:
+                                    drum_items.append(COMPONENT_MAP.get(c, (38, 3)))
+                            if not drum_items:
+                                drum_items = [(38, 3)]
+
+                            for m_note, s_num in drum_items:
+                                if s_num not in used_strings and 1 <= s_num <= len(track.strings):
+                                    used_strings.add(s_num)
+                                    note = gp.Note(beat)
+                                    note.value = int(m_note)
+                                    note.string = int(s_num)
+                                    note.type = gp.NoteType.normal
+                                    beat.notes.append(note)
 
                     elif inst_type in ("synth", "vocal", "orchestral"):
                         for ev in beat_events:
