@@ -1437,7 +1437,7 @@ export default function StudioDashboard() {
                 </button>
 
                 <button
-                  onClick={() => handleExecute(activeTab === "separation" ? "separate_stems" : (activeTab === "mixing" ? "mix_master" : (activeTab === "tabs" ? "transcribe_tabs" : "assemble_capcut")))}
+                  onClick={() => handleExecute(activeTab === "separation" ? "separate_stems" : (activeTab === "mixing" ? "mix_master" : (activeTab === "tabs" ? "transcribe_tabs" : "assemble_capcut")), activeTab === "tabs" ? { tuning: tabTuning, musical_key: tabKey, bpm: tabBpm } : {})}
                   disabled={executing}
                   className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-xs px-4 py-1.5 rounded-lg shadow flex items-center space-x-1.5 cursor-pointer"
                 >

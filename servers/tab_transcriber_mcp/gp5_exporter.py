@@ -275,42 +275,33 @@ def export_gp5_and_musicxml(
             "guitar"
         ))
 
-    # Place events on the beat nearest their measured onset. The previous
-    # implementation advanced one beat per detected event, stretching songs
-    # with many onsets far beyond the source duration.
+    # High-precision 16th-note subdivision grid for authentic rhythms and drum grooves
+    sixteenth_sec = (60.0 / bpm) / 4.0
+    total_slots = num_measures * 16
+
     for track, events, inst_type in tracks_to_process:
-        # Track(song) pre-populates measures from the existing headers. Clear
-        # those before building the explicit timeline or GP5 doubles every bar.
         track.measures.clear()
-        events_by_beat: Dict[int, List[Dict[str, Any]]] = {}
-        quarter_sec = 60.0 / bpm
+        events_by_slot: Dict[int, List[Dict[str, Any]]] = {}
         for ev in events:
-            beat_index = max(0, int(round(float(ev.get("start_time_sec", 0.0)) / quarter_sec)))
-            if beat_index < num_measures * 4:
-                # A single source can produce several onset candidates inside
-                # one quarter note. The current GP5 export grid cannot encode
-                # their separate timing, so retain the earliest candidate in
-                # each cell rather than stacking unrelated notes as a chord.
-                events_by_beat.setdefault(beat_index, [ev])
+            slot_index = max(0, int(round(float(ev.get("start_time_sec", 0.0)) / sixteenth_sec)))
+            if slot_index < total_slots:
+                events_by_slot.setdefault(slot_index, []).append(ev)
 
         for m_idx in range(num_measures):
             m_header = song.measureHeaders[m_idx]
             measure = gp.Measure(track, m_header)
             voice = measure.voices[0]
 
-            for beat_i in range(4):
+            for slot_i in range(16):
                 beat = gp.Beat(voice)
-                beat.duration.value = 4
+                beat.duration.value = 16
 
-                beat_index = m_idx * 4 + beat_i
-                beat_events = events_by_beat.get(beat_index, [])
-                if beat_events:
-                    # Keep a quarter-note grid so the GP5 timeline remains
-                    # bounded to the source duration; onset spacing is
-                    # quantized to the nearest quarter note.
+                slot_index = m_idx * 16 + slot_i
+                slot_events = events_by_slot.get(slot_index, [])
+                if slot_events:
                     used_strings = set()
                     if inst_type in ("guitar", "bass", "bowed"):
-                        for ev in beat_events:
+                        for ev in slot_events:
                             str_nums = ev.get("string_numbers", [len(track.strings)])
                             frets = ev.get("fret_positions", [0])
                             is_pm = ev.get("playing_state") == "palm_mute_chug"
@@ -339,7 +330,7 @@ def export_gp5_and_musicxml(
                             "china_cymbal": (52, 1),
                             "tom": (45, 4),
                         }
-                        for ev in beat_events:
+                        for ev in slot_events:
                             drum_items = []
                             m_notes = ev.get("midi_notes", [])
                             if m_notes:
@@ -362,17 +353,30 @@ def export_gp5_and_musicxml(
                                     beat.notes.append(note)
 
                     elif inst_type in ("synth", "vocal", "orchestral"):
-                        for ev in beat_events:
+                        for ev in slot_events:
                             midi_notes = ev.get("midi_notes") or ([ev["root_midi"]] if "root_midi" in ev else [])
                             if not midi_notes:
                                 midi_notes = [60]
-                            for idx_note, m_note in enumerate(midi_notes[:4]):
-                                s_int = min(len(track.strings), idx_note + 1)
-                                if s_int not in used_strings:
-                                    used_strings.add(s_int)
+                            for m_note in midi_notes[:4]:
+                                best_s = None
+                                best_fret = None
+                                min_fret = 999
+                                for s_idx in range(len(track.strings)):
+                                    open_val = track.strings[s_idx].value
+                                    fret = int(m_note) - open_val
+                                    if 0 <= fret <= 24 and fret < min_fret:
+                                        min_fret = fret
+                                        best_s = s_idx + 1
+                                        best_fret = fret
+                                if best_s is None:
+                                    best_s = 1 if int(m_note) >= track.strings[0].value else len(track.strings)
+                                    best_fret = max(0, min(24, int(m_note) - track.strings[best_s - 1].value))
+
+                                if best_s not in used_strings:
+                                    used_strings.add(best_s)
                                     note = gp.Note(beat)
-                                    note.value = max(0, min(24, (int(m_note) - 60) % 24))
-                                    note.string = s_int
+                                    note.value = best_fret
+                                    note.string = best_s
                                     note.type = gp.NoteType.normal
                                     beat.notes.append(note)
 

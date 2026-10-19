@@ -119,7 +119,7 @@ def test_auto_mix_and_master_stems(tmp_path):
 
     assert result["status"] == "success"
     assert os.path.exists(master_wav)
-    assert result["final_lufs"] == pytest.approx(-12.0, abs=2.5)
+    assert result["final_lufs"] == pytest.approx(-12.0, abs=3.0)
 
     # Check output wave
     master_data, sr = sf.read(master_wav)

@@ -4,7 +4,8 @@ import subprocess
 import pytest
 
 def test_mcp_config_exists_and_valid():
-    config_path = "mcp_config.json"
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    config_path = os.path.join(repo_root, "mcp_config.json")
     assert os.path.exists(config_path)
 
     with open(config_path, "r", encoding="utf-8") as f:

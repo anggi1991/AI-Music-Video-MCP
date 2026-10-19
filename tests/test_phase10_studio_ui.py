@@ -1,3 +1,4 @@
+import sys
 import os
 import json
 import subprocess
@@ -137,9 +138,10 @@ def test_cli_runner_daw_projects_and_capcut(tmp_path):
 
 def test_cli_runner_subcommand_via_subprocess():
     # Test that running cli_runner.py from command line outputs valid JSON
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     cmd = [
-        os.path.abspath(r".venv\Scripts\python.exe"),
-        os.path.abspath(r"servers\cli_runner.py"),
+        sys.executable,
+        os.path.join(repo_root, "servers", "cli_runner.py"),
         "scan_vst3",
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
