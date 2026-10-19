@@ -164,6 +164,8 @@ def separate_audio_6stems(
     split_orchestral_substems: bool = False,
     allow_dsp_fallback: bool = False,
     segment_sec: Optional[float] = None,
+    auto_polish_stems: bool = False,
+    enable_vst3: bool = True,
 ) -> Dict[str, Any]:
     """Separate full mix audio into 6 stems (vocals, drums, bass, guitar, synth, other)
 
@@ -395,5 +397,32 @@ def separate_audio_6stems(
         result["warnings"].append(
             "One or more experimental heuristic sub-stems were written. They are not source-isolated and must not be used as production stems."
         )
+
+    # 4. Optional Auto-Polish Stems (Phase 14: Dynamic VST3 / Native DSP Fallback)
+    if auto_polish_stems:
+        try:
+            from servers.daw_studio_mcp.stem_polisher import polish_stems_batch
+        except ImportError:
+            try:
+                from stem_polisher import polish_stems_batch
+            except Exception:
+                polish_stems_batch = None
+
+        if polish_stems_batch:
+            polish_res = polish_stems_batch(output_paths, output_dir=output_dir, enable_vst3=enable_vst3)
+            result["polish_mode"] = polish_res.get("polish_mode", "native_dsp_fallback")
+            result["applied_chains"] = polish_res.get("applied_chains", {})
+            result["stems"] = polish_res.get("polished_stems", output_paths)
+
+            manifest_path = os.path.join(output_dir, "stem_polish_manifest.json")
+            try:
+                import json
+                with open(manifest_path, "w", encoding="utf-8") as mf:
+                    json.dump({
+                        "polish_mode": result["polish_mode"],
+                        "applied_chains": result["applied_chains"],
+                    }, mf, indent=2)
+            except Exception:
+                pass
 
     return result

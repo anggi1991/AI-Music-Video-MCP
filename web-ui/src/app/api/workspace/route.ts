@@ -88,6 +88,25 @@ export async function GET() {
     walkAudioFiles(sourceSongsDir);
     audioCandidates.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 
+    let appliedChains: Record<string, string[]> = {};
+    let polishMode: string = "native_dsp_fallback";
+    if (fs.existsSync(inputStemsDir)) {
+      for (const entry of fs.readdirSync(inputStemsDir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          const manifestPath = path.join(inputStemsDir, entry.name, "stem_polish_manifest.json");
+          if (fs.existsSync(manifestPath)) {
+            try {
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+              appliedChains = { ...appliedChains, ...(manifest.applied_chains || {}) };
+              if (manifest.polish_mode) polishMode = manifest.polish_mode;
+            } catch {
+              // ignore
+            }
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       status: "success",
       hardware,
@@ -100,6 +119,8 @@ export async function GET() {
         output_tabs: getFiles(outputTabsDir),
         veo_footage: getFiles(veoFootageDir),
         sync_map: syncMap,
+        applied_chains: appliedChains,
+        polish_mode: polishMode,
       },
     });
   } catch (error: any) {

@@ -50,6 +50,7 @@ export default function StudioDashboard() {
   const [splitGuitars, setSplitGuitars] = useState(false);
   const [splitOrchestra, setSplitOrchestra] = useState(false);
   const [antiBleedGate, setAntiBleedGate] = useState(false);
+  const [autoPolishStems, setAutoPolishStems] = useState(false);
   const [separationModel, setSeparationModel] = useState("htdemucs_6s");
   const [segmentSec, setSegmentSec] = useState("");
 
@@ -216,6 +217,7 @@ export default function StudioDashboard() {
       p += `- Separation backend: ${separationModel}\n`;
       p += `- Model segment override: ${segmentSec || "model default"} seconds\n`;
       p += `- Experimental heuristic vocal/guitar/orchestra sub-stems (not reliable source separation): ${splitVocals || splitGuitars || splitOrchestra ? "REQUESTED" : "OFF"}\n`;
+      p += `- Auto-Polish Stems (Dynamic VST3 / Native DSP): ${autoPolishStems ? "ACTIVE" : "OFF"}\n`;
       p += `- Anti-Bleed Noise Gate: ${antiBleedGate ? "ACTIVE" : "OFF"}\n`;
     } else if (activeTab === "mixing") {
       p += `Task: Flagship VST3 Mix & Master + DAW Session Generation\n`;
@@ -244,6 +246,7 @@ export default function StudioDashboard() {
     splitGuitars,
     splitOrchestra,
     antiBleedGate,
+    autoPolishStems,
     separationModel,
     segmentSec,
     genreProfile,
@@ -280,6 +283,7 @@ export default function StudioDashboard() {
           target_lufs: targetLufs,
           auto_use_detected_vst3: autoVst3,
           apply_bleed_gate: antiBleedGate,
+          auto_polish_stems: autoPolishStems,
           split_guitar_substems: splitGuitars,
           split_vocal_substems: splitVocals,
           split_orchestral_substems: splitOrchestra,
@@ -623,6 +627,28 @@ export default function StudioDashboard() {
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="md:col-span-2 flex items-start justify-between p-3.5 bg-gradient-to-r from-violet-950/40 via-slate-900/90 to-slate-900/90 rounded-xl border border-violet-800/50 hover:border-violet-600 transition cursor-pointer shadow-sm">
+                    <div className="pr-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-violet-200 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                          ✨ Auto-Polish Stems (Dynamic VST3 / Native DSP De-Bleed)
+                        </span>
+                        <span className="text-[9px] bg-violet-900/60 text-violet-300 border border-violet-700/50 px-2 py-0.5 rounded-full font-mono uppercase tracking-wider">
+                          Public GitHub Ready
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 leading-tight mt-1">
+                        Automatically applies surgical EQ/de-bleed using detected VST3 plugins (FabFilter, soothe2, RX, Ozone) with automatic fallback to native Pedalboard DSP if no commercial plugins are installed.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={autoPolishStems}
+                      onChange={(e) => setAutoPolishStems(e.target.checked)}
+                      className="w-4 h-4 accent-violet-600 cursor-pointer mt-1"
+                    />
+                  </label>
                   <label className="flex items-start justify-between p-3.5 bg-slate-900/90 rounded-xl border border-slate-800/90 hover:border-slate-700 transition cursor-pointer">
                     <div className="pr-3">
                       <div className="text-xs font-semibold text-slate-200">
@@ -722,17 +748,42 @@ export default function StudioDashboard() {
                         <span className="text-[11px] text-slate-400">Pretrained Neural Network Source Separation</span>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
-                        {primaryStems.map((stem: any) => (
-                          <div key={stem.relativePath} className="rounded-xl border border-cyan-900/40 bg-slate-950/90 p-3 shadow-sm">
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <span className="text-xs font-semibold text-cyan-200 font-mono">{stem.name}</span>
-                              <span className="text-[10px] rounded-full px-2 py-0.5 bg-cyan-950 text-cyan-300 border border-cyan-800/50">
-                                Pretrained AI Model
-                              </span>
+                        {primaryStems.map((stem: any) => {
+                          const stemBase = stem.name.toLowerCase().replace(/\.wav$/i, "");
+                          const appliedChain: string[] | undefined =
+                            workspace?.applied_chains?.[stemBase] || workspace?.applied_chains?.[stem.name];
+                          const vstPlugins =
+                            appliedChain?.filter((fx: string) =>
+                              /pro-q|pro-ds|pro-c|pro-mb|pro-l|soothe|valhalla|rx|ozone|satur|parallax/i.test(fx)
+                            ) || [];
+                          const hasVst = vstPlugins.length > 0;
+
+                          return (
+                            <div key={stem.relativePath} className="rounded-xl border border-cyan-900/40 bg-slate-950/90 p-3 shadow-sm space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-semibold text-cyan-200 font-mono">{stem.name}</span>
+                                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                  {appliedChain && appliedChain.length > 0 && (
+                                    hasVst ? (
+                                      <span className="text-[9px] rounded-md px-1.5 py-0.5 bg-violet-950/90 text-violet-300 border border-violet-700/60 font-mono font-medium flex items-center gap-1">
+                                        <Sparkles className="w-2.5 h-2.5 text-violet-400" />
+                                        VST3 Polished: {vstPlugins.slice(0, 2).join(", ")}{vstPlugins.length > 2 ? ` +${vstPlugins.length - 2}` : ""}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[9px] rounded-md px-1.5 py-0.5 bg-slate-900 text-cyan-400 border border-slate-700 font-mono font-medium">
+                                        DSP Cleaned: {appliedChain.filter((fx: string) => fx.includes("HPF") || fx.includes("LPF") || fx.includes("Compressor")).join(", ") || appliedChain.slice(0, 2).join(", ")}
+                                      </span>
+                                    )
+                                  )}
+                                  <span className="text-[10px] rounded-full px-2 py-0.5 bg-cyan-950 text-cyan-300 border border-cyan-800/50">
+                                    Pretrained AI Model
+                                  </span>
+                                </div>
+                              </div>
+                              <audio controls preload="none" className="w-full" src={`/api/audio?file=${encodeURIComponent(stem.relativePath)}`} />
                             </div>
-                            <audio controls preload="none" className="w-full" src={`/api/audio?file=${encodeURIComponent(stem.relativePath)}`} />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

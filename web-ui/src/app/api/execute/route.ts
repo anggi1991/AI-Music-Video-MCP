@@ -273,7 +273,10 @@ function generateMasterPrompt(action: string, params: any): string {
     return (
       `Separate audio file "${params.audio_path}" using the real pretrained htdemucs_6s model. Report the exact model, source labels, sample rate and output paths.\n` +
       `Do not substitute frequency-band, Mid/Side or HPSS filtering and do not report a fallback as successful isolation. Stop with an explicit error if the model is unavailable.\n` +
-      `The current DSP vocal/guitar/orchestra routines are experimental masks only. Do not describe their outputs as isolated performers or instruments.`
+      `The current DSP vocal/guitar/orchestra routines are experimental masks only. Do not describe their outputs as isolated performers or instruments.` +
+      (params.auto_polish_stems
+        ? `\n- Auto-Polish Stems: ENABLED. Apply dynamic VST3 / Native DSP de-bleeding chain sequentially to all isolated stems and record applied chains in manifest.`
+        : "")
     );
   } else if (action === "mix_master") {
     return (

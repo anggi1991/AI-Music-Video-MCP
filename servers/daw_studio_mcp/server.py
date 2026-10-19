@@ -31,6 +31,7 @@ try:
         scan_installed_vst3_plugins as _scan_installed_vst3_plugins,
         inspect_vst3_parameters as _inspect_vst3_parameters,
     )
+    from .stem_polisher import polish_stems_batch as _polish_stems_batch
     from .daw_bridge import (
         DAWBridge,
         generate_reaper_project_rpp as _generate_reaper_project_rpp,
@@ -51,6 +52,7 @@ except ImportError:
         scan_installed_vst3_plugins as _scan_installed_vst3_plugins,
         inspect_vst3_parameters as _inspect_vst3_parameters,
     )
+    from stem_polisher import polish_stems_batch as _polish_stems_batch
     from daw_bridge import (
         DAWBridge,
         generate_reaper_project_rpp as _generate_reaper_project_rpp,
@@ -126,6 +128,7 @@ def separate_audio_6stems(
     split_vocal_substems: bool = False,
     split_orchestral_substems: bool = False,
     segment_sec: Optional[float] = None,
+    auto_polish_stems: bool = False,
 ) -> Dict[str, Any]:
     """Separate with pretrained htdemucs_6s; optional DSP sub-stems are experimental masks."""
     return _separate_audio_6stems(
@@ -137,6 +140,7 @@ def separate_audio_6stems(
         split_vocal_substems=split_vocal_substems,
         split_orchestral_substems=split_orchestral_substems,
         segment_sec=segment_sec,
+        auto_polish_stems=auto_polish_stems,
     )
 
 
@@ -257,3 +261,17 @@ def trigger_daw_transport(action: str = "play") -> Dict[str, Any]:
 
 if __name__ == "__main__":
     mcp.run()
+
+
+@mcp.tool()
+def auto_polish_audio_stems(
+    stems_dict: Dict[str, str],
+    output_dir: Optional[str] = None,
+    enable_vst3: bool = True,
+) -> Dict[str, Any]:
+    """Sequentially polish stems using dynamic VST3 discovery with native Pedalboard DSP fallback."""
+    return _polish_stems_batch(
+        stems_dict=stems_dict,
+        output_dir=output_dir,
+        enable_vst3=enable_vst3,
+    )

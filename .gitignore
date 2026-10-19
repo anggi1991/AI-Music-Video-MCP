@@ -1,4 +1,4 @@
-# Local Python environment and caches
+﻿# Local Python environment and caches
 .venv/
 __pycache__/
 *.py[cod]
@@ -14,6 +14,24 @@ workspace/*
 !workspace/source_songs/
 workspace/source_songs/*
 !workspace/source_songs/.gitkeep
+
+!workspace/input_stems/
+workspace/input_stems/*
+!workspace/input_stems/.gitkeep
+
+!workspace/output_audio/
+workspace/output_audio/*
+!workspace/output_audio/.gitkeep
+
+!workspace/output_tabs/
+workspace/output_tabs/*
+!workspace/output_tabs/.gitkeep
+
+!workspace/veo_footage/
+workspace/veo_footage/*
+!workspace/veo_footage/.gitkeep
+
+# Pretrained model weights
 *.ckpt
 *.th
 *.onnx

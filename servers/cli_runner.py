@@ -101,7 +101,19 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
             split_orchestral_substems=params.get("split_orchestral_substems", False),
             allow_dsp_fallback=params.get("allow_dsp_fallback", False),
             segment_sec=params.get("segment_sec"),
+            auto_polish_stems=bool(params.get("auto_polish_stems", False)),
         )
+
+    elif action == "polish_stems":
+        from servers.daw_studio_mcp.stem_polisher import polish_stems_batch
+        stems = params.get("stems", {})
+        if isinstance(stems, str):
+            stems = json.loads(stems)
+        output_dir = params.get("output_dir")
+        if output_dir and not os.path.isabs(output_dir):
+            output_dir = os.path.join(PROJECT_ROOT, output_dir)
+        enable_vst3 = bool(params.get("enable_vst3", True))
+        return polish_stems_batch(stems, output_dir=output_dir, enable_vst3=enable_vst3)
 
     elif action == "decompose_guitar":
         return decompose_guitar_stem(
