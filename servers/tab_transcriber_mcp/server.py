@@ -21,6 +21,7 @@ if PROJECT_ROOT not in sys.path:
 try:
     from .pitch_tracker import analyze_stem_pitches
     from .fretboard_solver import (
+        TUNINGS,
         detect_guitar_tuning,
         detect_bass_tuning,
         get_bowed_instrument_tuning,
@@ -33,6 +34,7 @@ try:
 except ImportError:
     from pitch_tracker import analyze_stem_pitches
     from fretboard_solver import (
+        TUNINGS,
         detect_guitar_tuning,
         detect_bass_tuning,
         get_bowed_instrument_tuning,
@@ -78,6 +80,7 @@ def transcribe_stems_to_gp5_and_sync_map(
     other_stem: Optional[str] = None,
     auto_decompose_orchestra: bool = False,
     master_audio_path: Optional[str] = None,
+    tuning_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Transcribe audio stems into multi-track Guitar Pro 5 (.gp5), MusicXML, and visual_sync_map.json.
 
@@ -127,14 +130,17 @@ def transcribe_stems_to_gp5_and_sync_map(
     raw_synth = get_or_analyze(synth_stem, "synth")
 
     # 5. Guitar Tuning Detection
-    ref_stem = guitar_rhythm_stem or guitar_stem or guitar_lead_stem
-    if ref_stem and os.path.exists(ref_stem):
-        raw_ref = get_or_analyze(ref_stem, "guitar")
-        lowest_note = min([ev.get("root_midi", 48) for ev in raw_ref], default=48)
+    if tuning_name and tuning_name in TUNINGS:
+        open_strings = TUNINGS[tuning_name]
     else:
-        lowest_note = 48
+        ref_stem = guitar_rhythm_stem or guitar_stem or guitar_lead_stem
+        if ref_stem and os.path.exists(ref_stem):
+            raw_ref = get_or_analyze(ref_stem, "guitar")
+            lowest_note = min([ev.get("root_midi", 48) for ev in raw_ref], default=48)
+        else:
+            lowest_note = 48
+        tuning_name, open_strings = detect_guitar_tuning(lowest_note)
 
-    tuning_name, open_strings = detect_guitar_tuning(lowest_note)
     _, bass_open_strings = detect_bass_tuning(tuning_name)
 
     # Helper for fretted guitar tracks

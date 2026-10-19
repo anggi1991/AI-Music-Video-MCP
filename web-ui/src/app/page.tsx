@@ -157,6 +157,9 @@ export default function StudioDashboard() {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [manualPromptOverride, setManualPromptOverride] = useState("");
   const [isManualOverride, setIsManualOverride] = useState(false);
+  const [tabTuning, setTabTuning] = useState<string>("Standard E");
+  const [tabKey, setTabKey] = useState<string>("D Major");
+  const [tabBpm, setTabBpm] = useState<number>(91);
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
 
   // Fetch workspace on load
@@ -1072,8 +1075,48 @@ export default function StudioDashboard() {
                       <span>Open Tabs Folder</span>
                     </button>
                   )}
+                  {/* Tuning, Key, and BPM controls */}
+                  <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-800 text-xs">
+                    <span className="text-slate-400 font-semibold text-[11px]">Tuning:</span>
+                    <select
+                      value={tabTuning}
+                      onChange={(e) => setTabTuning(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-violet-300 font-semibold rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="Standard E">Standard E (E-A-D-G-B-E)</option>
+                      <option value="Drop D">Drop D (D-A-D-G-B-E)</option>
+                      <option value="Drop C">Drop C (C-G-C-F-A-D)</option>
+                      <option value="Eb Standard">Eb Standard (Half-Step Down)</option>
+                      <option value="D Standard">D Standard (Full-Step Down)</option>
+                    </select>
+
+                    <span className="text-slate-400 font-semibold text-[11px] ml-1">Key:</span>
+                    <select
+                      value={tabKey}
+                      onChange={(e) => setTabKey(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 text-emerald-300 font-semibold rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="D Major">D Major</option>
+                      <option value="B Minor">B Minor</option>
+                      <option value="D Minor">D Minor</option>
+                      <option value="C Major">C Major</option>
+                      <option value="C Minor">C Minor</option>
+                      <option value="E Minor">E Minor</option>
+                      <option value="A Minor">A Minor</option>
+                      <option value="G Major">G Major</option>
+                    </select>
+
+                    <span className="text-slate-400 font-semibold text-[11px] ml-1">BPM:</span>
+                    <input
+                      type="number"
+                      value={tabBpm}
+                      onChange={(e) => setTabBpm(Number(e.target.value))}
+                      className="w-14 bg-slate-900 border border-slate-700 text-cyan-400 font-bold rounded-lg px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+
                   <button
-                    onClick={() => handleExecute("transcribe_tabs")}
+                    onClick={() => handleExecute("transcribe_tabs", { tuning: tabTuning, musical_key: tabKey, bpm: tabBpm })}
                     disabled={executing}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-1.5"
                   >
@@ -1123,8 +1166,9 @@ export default function StudioDashboard() {
                     workspace?.output_tabs?.find((f: any) => f.name.toLowerCase().endsWith(".musicxml"))?.name ||
                     `${projectName}.musicxml`
                   }
-                  bpm={workspace.sync_map.bpm || 140}
-                  musicalKey={workspace.sync_map.musical_key || "C Minor"}
+                  bpm={workspace.sync_map.bpm || tabBpm || 91}
+                  musicalKey={workspace.sync_map.musical_key || tabKey || "D Major"}
+                  tuning={workspace.sync_map.tuning || tabTuning || "Standard E"}
                 />
               ) : null}
 

@@ -215,10 +215,15 @@ def run_action(action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             out_dir = raw_out_dir if os.path.isabs(raw_out_dir) else os.path.join(PROJECT_ROOT, raw_out_dir)
 
+        tuning_name = params.get("tuning") or params.get("tuning_name") or "Standard E"
+        bpm_val = float(params.get("bpm", 91.0))
+        key_val = params.get("musical_key", "D Major")
+
         return transcribe_stems_to_gp5_and_sync_map(
             project_name=project_name,
-            bpm=float(params.get("bpm", 140.0)),
-            musical_key=params.get("musical_key", "C Minor"),
+            bpm=bpm_val,
+            musical_key=key_val,
+            tuning_name=tuning_name,
             guitar_stem=guitar_stem,
             bass_stem=bass_stem,
             drum_stem=drum_stem,

@@ -9,14 +9,18 @@ import numpy as np
 
 TUNINGS = {
     "Standard E": [64, 59, 55, 50, 45, 40],   # E4, B3, G3, D3, A2, E2 (strings 1 to 6)
-    "Drop D":     [62, 57, 50, 45, 40, 38],   # D4, A3, D3, G2, A2, D2
-    "Drop C":     [60, 55, 48, 43, 38, 36],   # C4, G3, C3, F2, G2, C2
+    "Drop D":     [62, 57, 50, 45, 40, 38],
+    "Drop C":     [60, 55, 48, 43, 38, 36],
+    "Eb Standard":[63, 58, 54, 49, 44, 39],
+    "D Standard": [62, 57, 53, 48, 43, 38],
 }
 
 BASS_TUNINGS = {
     "Standard E": [43, 38, 33, 28],           # G2, D2, A1, E1
     "Drop D":     [43, 38, 33, 26],           # G2, D2, A1, D1
     "Drop C":     [41, 36, 31, 24],           # F2, C2, G1, C1
+    "Eb Standard":[42, 37, 32, 27],           # Gb2, Db2, Ab1, Eb1
+    "D Standard": [41, 36, 31, 26],           # F2, C2, G1, D1
 }
 
 BOWED_TUNINGS = {

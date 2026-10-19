@@ -23,6 +23,7 @@ interface SongsterrTabViewerProps {
   musicXmlFileName?: string;
   bpm?: number;
   musicalKey?: string;
+  tuning?: string;
 }
 
 declare global {
@@ -35,8 +36,9 @@ export default function SongsterrTabViewer({
   projectName,
   gp5FileName = "Fearless_my_tears.gp5",
   musicXmlFileName = "Fearless_my_tears.musicxml",
-  bpm = 140,
-  musicalKey = "C Minor",
+  bpm = 91,
+  musicalKey = "D Major",
+  tuning = "Standard E",
 }: SongsterrTabViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -352,7 +354,7 @@ export default function SongsterrTabViewer({
               <span>•</span>
               <span>Key: <strong className="text-emerald-400">{musicalKey}</strong></span>
               <span>•</span>
-              <span>Tuning: <strong className="text-violet-300">Drop C / Standard</strong></span>
+              <span>Tuning: <strong className="text-violet-300">{tuning || "Standard E"}</strong></span>
             </p>
           </div>
         </div>
